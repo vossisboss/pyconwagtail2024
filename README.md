@@ -1,6 +1,6 @@
-# Step Three: Extend and add Wagtail Models
+# Step Three: Extend and add models
 
-Before you start adding content and translating it, you'll need to add some models to Wagtail. Wagtail models are similar to [Django models](https://docs.djangoproject.com/en/4.1/topics/db/models/). One key difference is that Wagtail models handle views differently than Django models, but we'll go over that in a bit more detail when you add templates to your project. For right now, you mostly need to know that models provide the essential fields and structures for the content that will be stored in your database.
+Before you start adding content and translating it, you'll need to add some models to Wagtail. Wagtail models are derived from [Django models](https://docs.djangoproject.com/en/4.1/topics/db/models/). One key difference in writing models for Wagtail is that adding views isn't necessary unless you need to create a highly customized view or form. We'll go over this in a bit more detail when you add templates to your project. For right now, you mostly need to know that models provide the essential fields and structures for the content on your Wagtail site that will be stored in your database.
 
 Many of the steps you'll be doing here have been borrowed from the [Getting Started tutorial](https://docs.wagtail.org/en/stable/getting_started/tutorial.html) for Wagtail.
 
@@ -8,9 +8,9 @@ Many of the steps you'll be doing here have been borrowed from the [Getting Star
 
 Right out of the box, Wagtail comes with a `home` app that provides a blank `HomePage` model. This model will define the home page of your website and what content appears on it. Go to the `home` directory in your project and open up `models.py`. You'll see that all the model currently has in it by default is a `pass` command. So you're going to have to extend it to add content to your home page.
 
- Since this is a blog site, you should probably tell your readers what the blog is about and give them a reason to read it. All pages in Wagtail have a title by default, so you'll be able to add the blog title easily. So let's extend the `HomePage` model by adding text field for a blog summary to the model.
+ Since this is a blog site, you should probably tell your readers what the blog is about and give them a reason to read it. All pages in Wagtail have a title by default, so you'll be able to add the blog title easily. So let's extend the `HomePage` model by adding a text field for a blog summary to the model.
 
-First, you'll need to add some additional import statements to the top of the page. This statement will import the `RichTextField` (one that let's you use bold, italics, and other formatting) from Wagtail:
+First, you'll need to add some additional import statements to the top of the page. This statement will import the `RichTextField` (one that lets you use bold, italics, and other formatting) from Wagtail:
 
 ```
 from wagtail.fields import RichTextField
@@ -290,4 +290,4 @@ Next, replace the `body` definition from `RichTextField` in your `BlogPage` clas
     ], use_json_field=True)
 ```
 
-Save your file and then run the migration commands `python manage.py makemigrations` and `python manage.py migrate`. Start up the development server real quick with `python manage.py runserver` then have a look at a blank Blog Page. You'll notice that the "body" section now has a row of blocks for you to choose from. You can experiment with combining blocks if you want to, but keep in mind that we are most likely going to reset our migrations at least once. So don't add any data you care about just yet.
+Save your file and then run the migration commands `python manage.py makemigrations` and `python manage.py migrate`. Start up the development server real quick with `python manage.py runserver` then have a look at a blank Blog Page. You'll notice that the "body" section now has a row of blocks for you to choose from.
