@@ -999,7 +999,7 @@ There is a whole list of [default blocks](https://docs.wagtail.org/en/stable/ref
 
 ## Final words
 
-Thank you for going through this tutorial with me! I hope you found it useful. If you have any questions, don't hesitate to reach out to me on [Twitter](https://twitter.com/meagenvoss) or through the [Wagtail Slack Community](https://wagtail.org/slack).
+Thank you for going through this tutorial with us! We hope you found it useful. If you have any questions, don't hesitate to reach out to Meagen on [Twitter](https://twitter.com/meagenvoss) or through the [Wagtail Slack Community](https://wagtail.org/slack).
 
 ## Acknowledgments
 
