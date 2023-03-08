@@ -25,6 +25,7 @@
     </head>
 
     <header>
+        {% include "navigation/switcher.html" %}
         {% get_main_navigation %}
     </header>
 
@@ -40,6 +41,4 @@
         {# Override this in templates to add extra javascript #}
         {% endblock %}
     </body>
-
-    {% get_footer_text %}
 </html>

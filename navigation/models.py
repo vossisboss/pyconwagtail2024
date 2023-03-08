@@ -1,41 +1,27 @@
 from django.db import models
 
 from wagtail.admin.edit_handlers import FieldPanel
-from wagtail.fields import RichTextField
 from wagtail.models import TranslatableMixin
 from wagtail.snippets.models import register_snippet
-
-@register_snippet
-class FooterText(TranslatableMixin, models.Model):
-    body = RichTextField()
+from wagtail.admin.panels import PageChooserPanel
 
 
-    panels = [
-        FieldPanel("body"),
-    ]
-
-    def __str__(self):
-        return "Footer text"
-
-    class Meta:
-        verbose_name_plural = "Footer text"
-        unique_together = [
-            ("translation_key", "locale"),
-        ]
-
-
-
+# Create your models here.
 @register_snippet
 class MainNavigation (TranslatableMixin, models.Model):
     name = models.CharField(max_length=255)
 
-    menu_text = models.CharField(max_length=255)
-    menu_url = models.URLField()
+    menu_page = models.ForeignKey(
+          'wagtailcore.Page',
+          null=True,
+          blank=True,
+          on_delete=models.SET_NULL,
+          related_name='menu_page'
+      )
 
     panels = [
         FieldPanel("name"),
-        FieldPanel("menu_text"),
-        FieldPanel("menu_url"),
+        PageChooserPanel('menu_page'),
     ]
 
     def __str__(self):
@@ -46,3 +32,4 @@ class MainNavigation (TranslatableMixin, models.Model):
         unique_together = [
             ("translation_key", "locale"),
         ]
+
