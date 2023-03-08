@@ -1,307 +1,256 @@
-# Step Three: Extend and add models
+# Step Four: Add translatable navigation
 
-Before you start adding content and translating it, you'll need to add some models to Wagtail. Wagtail models are derived from [Django models](https://docs.djangoproject.com/en/4.1/topics/db/models/). One key difference in writing models for Wagtail is that adding views isn't necessary unless you need to create a highly customized view or form. We'll go over this in a bit more detail when you add templates to your project. For right now, you mostly need to know that models provide the essential fields and structures for the content on your Wagtail site that will be stored in your database.
+In this step, you're going to learn about Wagtail Snippets. Snippets are pieces of code that can be used in multiple places across a project but that aren't a part of the page tree. Some common uses for Snippets include author profiles, menus, and footer content. The nice thing about Wagtail is you can use `TranslatableMixin` to make your snippets translatable by Wagtail Localize.
 
-Many of the steps you'll be doing here have been borrowed from the [Getting Started tutorial](https://docs.wagtail.org/en/stable/getting_started/tutorial.html) for Wagtail.
+## Add a navigation app
 
-## Extending the `HomePage` model
-
-Right out of the box, Wagtail comes with a `home` app that provides a blank `HomePage` model. This model will define the home page of your website and what content appears on it. Go to the `home` directory in your project and open up `models.py`. You'll see that all the model currently has in it by default is a `pass` command. So you're going to have to extend it to add content to your home page.
-
- Since this is a blog site, you should probably tell your readers what the blog is about and give them a reason to read it. All pages in Wagtail have a title by default, so you'll be able to add the blog title easily. So let's extend the `HomePage` model by adding a text field for a blog summary to the model.
-
-First, you'll need to add some additional import statements to the top of the page. This statement will import the `RichTextField` (one that lets you use bold, italics, and other formatting) from Wagtail:
+To follow the separate apps structure, you're going to create a new app for all of the pieces related to website navigation. To create the app, type the following command into your terminal:
 
 ```
-from wagtail.fields import RichTextField
- ```
-
-And this statement will import the panel you need to make sure your new field appears in the Wagtail admin as well:
-
-```
-from wagtail.admin.panels import FieldPanel
+python manage.py startapp navigation
 ```
 
-Once those import statements are added, delete `pass` from your `HomePage` model and replace it with:
-
-```
-summary = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('summary'),
-    ]
-
-```
-
-Your whole file should look like this right now:
-
-```
-
-from django.db import models
-
-from wagtail.models import Page
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
-
-
-class HomePage(Page):
-    summary = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('summary'),
-    ]
-```
-
-Awesome! So what else do we need to have an attractive home page for the blog? An image is something most readers find appealing, so let's add an image to the `HomePage` model as well. Add the following code beneath your `summary` variable:
-
-```
-main_image = models.ForeignKey(
-        "wagtailimages.Image",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="+",
-    )
-```
-
-And then add another line to `content_panels`:
-```
-FieldPanel('main_image'),
-```
-
-Your full `models.py` file should like like this now:
-
-```
-from dataclasses import Field
-from django.db import models
-
-from wagtail.models import Page
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
-
-
-class HomePage(Page):
-    summary = RichTextField(blank=True)
-    main_image = models.ForeignKey(
-        "wagtailimages.Image",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="+",
-    )
-
-    content_panels = Page.content_panels + [
-        FieldPanel('summary'),
-        FieldPanel('main_image'),
-    ]
-
-```
-
-Now you have fields for a summary and for adding an image to your home page. To add those fields to the database, run the following migration commands:
-
-```
-python manage.py makemigrations
-python manage.py migrate
-```
-
-You can run the development server if you like to check that the fields were successfully added to the admin panel. 
-
-**NOTE:** Do not add any content just yet unless you don't mind losing it. It's fairly common to reset migrations early in developing a Django or Wagtail project.
-
-To do that, run `python manage.py runserver` and then navigate to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin). Login with the credentials you created when you made your superuser. Then navigate to the Pages menu and click on Home. To edit the home page, click on the three little dots next to Home and click "Edit". You should see that your two fields have been added to the page.
-
-## Adding blog models
-
-Now that you've extended the Home page and added some useful fields, let's add the key parts of our blog. To do that, you'll need to create a new app with the command:
-
-```
-python manage.py startapp blog
-```
-
-Then you need to add that app to `INSTALLED_APPS` in `myblog/settings/base.py`:
+You'll need to update your `INSTALLED_APPS` in `myblog/settings/base.py` so that the top of it looks like this:
 
 ```
 INSTALLED_APPS = [
     "home",
     "search",
-    # Insert this
     "blog",
-    "wagtail_localize",
+    "navigation",
     "wagtail_localize.locales",
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",
     # ...
 ]
 ```
-<br/>
 
-* * *
-## :memo: A quick note on project structure :memo:
-In Wagtail projects, it is generally a good idea to keep related models in separate apps because it makes it a little easier for you to manage changes that affect migrations. Also, it makes it a little easier to decide where to put new code or models. Some Wagtail developers like to use a "core" or "base" app for models that are used across their projects. Others prefer not to use that approach because it can make future migrations a little trickier to manage. Both approaches are valid! For this tutorial though, we're going to use the separate app approach.
+You'll use this app to store the models related to your translatable navigation snippets as well as some template tags that we'll use to help display the correct text for each locale. Curious what template tags are? You'll find out soon.
 
-* * *
+## Add a translatable footer model
 
-<br/>
-
-Now that you have a blog app added to your project, navigate to `blog/models.py`. We're going to create two new page types for our blog. Wagtail is a CMS that uses a tree structure to organize content. There are parent pages and child pages. The ultimate parent page by default is the Home page. All other page types branch off of the Home page. Then child pages can branch off of those pages too.
-
-First, you need to create a parent type for the blog. Most Wagtail developers will call these pages "index" pages, so this one will be called `BlogPageIndex`. Add the following code to your `models.py` file in the blog app:
+First, you're going to add a translatable footer to your project. Having a translatable footer is handy for a blog because different countries can have different requirements when it comes to the legal notices you have to include on your website. To create your translatable footer, open `navigation/models.py` and add these import statements:
 
 ```
-
-from wagtail.models import Page
+from wagtail.admin.edit_handlers import FieldPanel
 from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
-
-
-class BlogIndexPage(Page):
-    intro = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('intro')
-    ]
+from wagtail.models import TranslatableMixin
+from wagtail.snippets.models import register_snippet
 ```
 
-This is a very simple version of `BlogIndexPage` with only a single `intro` field to describe the blog. You'll be adding a few more things to it later, but this will work right now for getting your blog set up.
-
-Next, we need to create a child page called `BlogPage`. Think about the fields you need for a reader to enjoy a blog post. The title is included by default, so what else do you need? Blogs can get pretty messy without dates to organize them, so you'll need a `date` frield for sure. Let's type:
+You'll need `RichTextField` to add text to your foot, `TranslatableMixin` to make it translatable, `FieldPanel` to add a panel to the admin interface, and `register_snippet` to add this model as a Snippet rather than a Wagtail page model. Here's how you will set up the Snippet:
 
 ```
-class BlogPage(Page):
-    date = models.DateField("Post date")
+@register_snippet
+class FooterText(TranslatableMixin, models.Model):
+    body = RichTextField()
 
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
+
+    panels = [
+        FieldPanel("body"),
     ]
 
+    def __str__(self):
+        return "Footer text"
+
+    class Meta:
+        verbose_name_plural = "Footer text"
+        unique_together = [
+            ("translation_key", "locale"),
+        ]
+
 ```
 
-Let's add an `intro` field to this page type too so that you can use it to give readers a preview of the blog post.
+Let's look at the different pieces. In setting up the class, you're telling `FooterText` to call on `TranslatableMixin` and `models.Model`. In the next lines, you're telling Wagtail, the body of the footer will include one `RichTextField` and the field will be rendered in one panel labeled "body".
+
+The next few lines are a little different from setting up `Page` models in Wagail. Unlike pages, which include titles by default, Snippets need to have names given to them. You can either set them up to be named by users in the admin interface or you can hard code a name like you just did here with `return "Footer text" `. You'll get to see an example of the other naming approach when we code the navigation menu.
+
+Under `Meta`, `verbose_name_plural` provides a plural version of the Snippet label so that you can keep the grammar hawks at your workplace happy. The `unique_together` is required for `TranslatableMixin`. It ties key pieces of your models together in the database and helps keep your locales organized.
+
+Once you've added these pieces, do your migrations steps to update the database:
 
 ```
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
+python manage.py makemigrations
+python manage.py migrate
+```
+Start up your website with `python manage.py runserver`. On the lefthand menu, you'll see now that you have a menu labeled "Snippets" now. Click on it and there will be an item labeled "Footer text". Click on it and you should be taken to a page with a button that says "Add Footer Text". Click the button and fill out the field to add your footer text. If you want to continue with the badger theme, you can add "Copyright 2022 Badgers Inc. All rights reserved." and then click "Save".
 
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
+You'll be returned to the snippet menu and there will now be an item labeled "Footer text" added to the list. When you hover over that item, you should see three buttons. "Edit", "Delete", and "Translate". Go ahead and click on "Translate".
+
+You'll see a translation workflow similar to the one you used previously for the pages. Let's go ahead and manually translate the footer to "Copyright 2022 Badgers Inc. Tous droits réservés" and save the changes.
+
+## Create a template tag for the footer
+
+Now that you have some footer content and translated footer content, you're going to need a way to pull that content into the correct templates and locales. You're going to accomplish that with a custom [template tag](https://docs.djangoproject.com/en/3.2/howto/custom-template-tags/). Template tags are bits of code that process data provided by a model and organize it before you pull the data into a template.
+
+Since the template tag is related to navigation, go ahead and add a new directory to the `navigation` app called `templatetags`. In the directory, add a blank `__init__.py` file and a file called `navigation_tags.py`. Open `navigation_tags.py`. Add these three import statements to the top of the file.
+
+```
+from django import template
+
+from navigation.models import FooterText, MainNavigation
+
+register = template.Library()
+```
+
+You'll need `template` to set up the `register` variable needed for custom template tags. You'll also need the Snippet model that you're going to be manipulating, which is why you're importing `FooterText`.
+
+After adding the import statements, add this code beneath them:
+
+```
+@register.inclusion_tag("navigation/footer.html", takes_context=True)
+def get_footer_text(context):
+    footer_text = ""
+    if FooterText.objects.first() is not None:
+        footer_text = FooterText.objects.first().localized.body
+
+    return {
+        "footer_text": footer_text,
+    }
+```
+In this section, you're telling Wagtail that your tag is connected to the template found at `navigation/footer.html` (which you'll create in the next section) and that your template tag needs to access the current context of the model. 
+
+In the definition of `get_footer_text`, you created an empty string variable for `footer_text`, then you used an `if` statement to check that a `FooterText` object exists. Because there is only one item for the footer text, `.first()` was used to collect that first object and `.localized` was used to select the footer text `.body` associated with the locale for the page that the footer appears on and store it in the `footer_text` variable.
+
+## Create templates for the footer
+
+With this logic in place, now you can create templates for pulling the data onto your page. First, navigate to `myblog/templates` and create a directory labeled `navigation`. Then create a file called `navigation` and add a file labeled `footer.html` to it. In `footer.html`, let's add some code to collect and display the contents of the `footer_text` variable.
+
+```
+{% load wagtailcore_tags %}
+
+<div class="copyright">
+    {{ footer_text|richtext }}
+</div>
+```
+
+You'll notice that the `richtext` filter is being applied again. Just like for the pages, this is to make sure that all of the characters in the rich text field display properly.
+
+Now that you have a bit of code to display the footer, you can use the template tag you created to add this bit of code to your `base.html` file. Go to `myblog/templates/base.html` and update the statement at the top of the file so that it says:
+
+```
+{% load static wagtailcore_tags wagtailuserbar navigation_tags %}
+```
+At the bottom of the file, add the template tag `{% get_footer_text %}` after the closing `</body>` tag and just above the closing `</html>` tag.
+
+Save all of your changes. Start your website with `python manage.py runserver` if you don't have it running already. Navigate to your home page at [http://127.0.0.1:8000/en](http://127.0.0.1:8000/en) and confirm that your footer is displaying properly. Now navigate to [http://127.0.0.1:8000/fr](http://127.0.0.1:8000/fr) and you should see the same footer but in French.
+
+## Add a model for a translatable navigation menu
+
+The footer is a fairly simple element to translate, especially if you put all of the content in a single rich text field. Now you're going to add a translatable main navigation menu at the top of the page. 
+
+To keep the amount of time needed for this tutorial maneagable, the approach you're going to use is a bit more manual. It relies on the content editor to add labels and URLs rather than collecting them programatically. If you have time later, you can upgrade the menu to one that automatically collects page titles and URLs. I'll provide some sample code in the resources at the end.
+
+Now, let's add a model for the menu to `navigation/models.py`. You should already have all the import statements you need, so add the following code beneath your `FooterText` snippet:
+
+```
+@register_snippet
+class MainNavigation (TranslatableMixin, models.Model):
+    name = models.CharField(max_length=255)
+
+    menu_text = models.CharField(max_length=255)
+    menu_url = models.URLField()
+
+    panels = [
+        FieldPanel("name"),
+        FieldPanel("menu_text"),
+        FieldPanel("menu_url"),
     ]
-```
 
-Note that `intro` has `max_length` added to it. This provides a character limit on the field so that writers won't get too long-winded and break your website's design with descriptions that are too long. You're welcome to give them more characters to work with if you want to.
+    def __str__(self):
+        return self.name
 
-You'll also need a `body` field to provide a place to put your post content (since creating a blog without a place to put content kind of defeats the purpose of a blog). 
-
-```
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
-```
-
-## Making your blog searchable
-
-Now, those fields are a good start for a basic blog. While we're here though, let's take a moment to make the content of your blog searchable. Update `models.py` with this code:
+    class Meta:
+        verbose_name_plural = "Main navigation"
+        unique_together = [
+            ("translation_key", "locale"),
+        ]
 
 ```
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = RichTextField(blank=True)
 
-    search_fields = Page.search_fields + [
-        index.SearchField('intro'),
-        index.SearchField('body'),
-    ]
+This code is very similar to the code you used for the footer snippet. One difference you'll notice though is that there is a `name` field as well as a line to `return self.name` in a string. The reason this approach is used rather than hardcoding the name is that you're going to have multiple links in your menu navigation and you're going to need to be able to tell them apart in the admin. The other fields will be the `menu_text` and the `menu_url` so that you can add as many links to the navigation menu as you need and also include external links if you would like to use them.
 
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
-```
+## Add a template tag for the navigation menu
 
-Then add `from wagtail.search import index` to your import statements so that the whole file looks like this:
+Just like for the footer, you're going to add a template tag for the main navigation menu. Only with this template tag, you're going to collect all of the items for the menu rather than the first one, and then you're going to use a function to filter them. Open `navigation/templatetags/navigation_tags.py` and add the following code above the code for your footer template tag:
 
 ```
-from django.db import models
+def filter_nav_for_locale(cls, locale):
+    menu_items = None
 
-from wagtail.models import Page
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
-from wagtail.search import index
+    try:
+        menu_items = cls.objects.filter(locale=locale)
+    except cls.DoesNotExist:
+        pass
 
+    if not menu_items:
+        try:
+            menu_items = cls.objects.filter(locale=default_language())
+        except cls.DoesNotExist:
+            pass
 
-class BlogIndexPage(Page):
-    intro = RichTextField(blank=True)
+    return menu_items
 
-    content_panels = Page.content_panels + [
-        FieldPanel('intro')
-    ]
-
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = RichTextField(blank=True)
-
-    search_fields = Page.search_fields + [
-        index.SearchField('intro'),
-        index.SearchField('body'),
-    ]
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
+@register.inclusion_tag("navigation/main_navigation.html", takes_context=True)
+def get_main_navigation(context):
+    menu_items = []
+    if MainNavigation.objects.all() is not None:
+        menu_items = MainNavigation.objects.all()
+        
+    return {
+        "menu_items": menu_items,
+    }
 ```
 
-Save all of your work. Then run `python manage.py makemigrations` and `python manage.py migrate` to check that the fields have been added to the Wagtail admin.
+You could narrow down the objects to `.localized` objects in the template tag here if you wanted to rather than using `Locale`. But I want to demonstrate how you can select `.localized` objects in the template as well. So let's look at how to do that in the next section.
 
-## Adding Wagtail StreamField
+## Add a template for the navigation menu
 
-One of the best parts of Wagtail is [StreamField](https://docs.wagtail.org/en/stable/topics/streamfield.html). StreamField gives users the power to mix and match different "blocks" of content rather than having a strict structure for a page. For example, someone writing a blog post could add a "quote" block to highlight a particular quote or phrase from their post. Or they could add a "sidebar" block that includes a little extra bonus content on the page. There aren't many limits to the types of blocks you can create.
-
-To show you StreamField in action, you're going to create a simple StreamField implementation in the blog post `body` using some of the [default blocks](https://docs.wagtail.org/en/stable/reference/streamfield/blocks.html?highlight=blocks) that come with Wagtail. First, add these import statements to your `models.py` file:
+Under `myblog/templates/navigation`, add a file called `main_navigation.html`. Then add this code to the file:
 
 ```
-from wagtail.fields import StreamField
-from wagtail.embeds.blocks import EmbedBlock
-from wagtail import blocks
-from wagtail.images.blocks import ImageChooserBlock
+<div class = "navigation">
+    <ul>
+        {% for menu_item in menu_items %}
+            {% if menu_item.localized %}
+               <li><a href = "{{ menu_item.localized.menu_url }}"> {{ menu_item.localized.menu_text }}</a></li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</div>
 ```
 
+With this code, you're using a `for` statement to sort through all of the items in the `menu_items` variable and then an `if` statement to determine which ones are `.localized` and associated with the locale of that particular page. Then you're using the `.menu_url` and `.menu_text` attributes for each item to create links for your navigation menu.
 
-Next, replace the `body` definition from `RichTextField` in your `BlogPage` class with the following code:
+Now you need to add the template tag to `base.html`. Insert this code after the `<head>` section and before the `<body>` section:
 
 ```
-    body = StreamField([
-        ('heading', blocks.CharBlock(form_classname="title")),
-        ('paragraph', blocks.RichTextBlock()),
-        ('image', ImageChooserBlock()),
-        ('embed', EmbedBlock(max_width=800, max_height=400)),
-    ], use_json_field=True)
+<header>
+    {% get_main_navigation %}
+</header>
 ```
 
-Save your file and then run the migration commands `python manage.py makemigrations` and `python manage.py migrate`. Start up the development server real quick with `python manage.py runserver` then have a look at a blank Blog Page. You'll notice that the "body" section now has a row of blocks for you to choose from.
+Save all of your changes if you haven't already and then run `python manage.py runserver`. Navigate to your home page at [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin). Go to "Snippets" in the lefthand menu and choose "Main Navigation". Click "Add main navigation" to add a menu item. If you need some inspiration, you can name your first item "Home" with menu text "Home" and the menu URL "http://127.0.0.1:8000". You'll also want to add an item for your blog with the name "Blog", the menu text "Blog" and the URL "http://127.0.0.1:8000/blog." After adding these items, navigate to  [http://127.0.0.1:8000/en](http://127.0.0.1:8000/en) and confirm that your menu is displaying properly. 
 
-<br />
+Now, go back to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) and go back to the "Main Navigation" section of "Snippets". Use the same "Translate" button you used for the footer content to translate your items to French. Conveniently, "Blog" in French is "Blog." You will want to change the text for "Home" to "Accueil" though. After you save each translated item, navigate to [http://127.0.0.1:8000/fr](http://127.0.0.1:8000/fr) and you should see the same menu displayed in French.
 
-***
+## Add a language switcher
 
-## :warning: Be aware of custom models :warning:
+One last item that is super handy on a website with multiple languages is a language switcher that can rotate through the different locales.
 
-Before we move on, I want to call attention to one major quirk of Django and Wagtail : custom models. In the Django documentation, it says "It’s highly recommended to set up a custom user model, even if the default User model is sufficient for you." This is because creating a custom user model in the middle of a project or with an existing database is a huge hassle. Even very smart people haven't figure out how to create a migration fix for it yet. The Django ticket to solve this issue has been open for years.
+Add a file to `myblog/templates/navigation` called `switcher.html`. Then add these lines to the file:
 
-To save some time, we're not going to add custom models to our Wagtail project in this workshop. If you want to add the models afterwards, here are the key models you should consider creating custom models for and links to the appropriate documentation:
+```
+{% load i18n wagtailcore_tags %}
+{% if page %}
+    {% for translation in page.get_translations.live %}
+        {% get_language_info for translation.locale.language_code as lang %}
+        <a href="{% pageurl translation %}" rel="alternate" hreflang="{{ lang.code }}">
+            {{ lang.name_local }}
+        </a>
+    {% endfor %}
+{% endif %}
+```
+This code uses a combination of the i18n features in Django and Wagtail's translation features to collect all of the available live translations with `{% for translation in page.get_translations.live %}` and then collects all of the available languages with `{% get_language_info for translation.locale.language_code as lang %}`.
 
-- [User](https://docs.wagtail.org/en/stable/advanced_topics/customisation/custom_user_models.html#custom-user-models)
-- [AbstractImage and AbstractRendition](https://docs.wagtail.org/en/stable/advanced_topics/images/custom_image_model.html#custom-image-model)
-- [AbstractDocument](https://docs.wagtail.org/en/stable/advanced_topics/documents/custom_document_model.html#id1)
+The next lines create a URL for each one of the translations and connects them to the appropriate language for the page that is displaying. Because there are only two locales available in this tutorial, they will just toggle back and forth between English and French.
