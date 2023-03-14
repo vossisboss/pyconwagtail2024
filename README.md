@@ -1,4 +1,4 @@
-# Step Three: Extend and add models
+# Step Three: Extend home page model
 
 Before you start adding content and translating it, you'll need to add some models to Wagtail. Wagtail models are derived from [Django models](https://docs.djangoproject.com/en/4.1/topics/db/models/). One key difference in writing models for Wagtail is that adding views isn't necessary unless you need to create a highly customized view or form. We'll go over this in a bit more detail when you add templates to your project. For right now, you mostly need to know that models provide the essential fields and structures for the content on your Wagtail site that will be stored in your database.
 
@@ -104,204 +104,60 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
-You can run the development server if you like to check that the fields were successfully added to the admin panel. 
+## Check your fields with the development server 
 
-**NOTE:** Do not add any content just yet unless you don't mind losing it. It's fairly common to reset migrations early in developing a Django or Wagtail project.
-
-To do that, run `python manage.py runserver` and then navigate to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin). Login with the credentials you created when you made your superuser. Then navigate to the Pages menu and click on Home. To edit the home page, click on the three little dots next to Home and click "Edit". You should see that your two fields have been added to the page.
-
-## Adding blog models
-
-Now that you've extended the Home page and added some useful fields, let's add the key parts of our blog. To do that, you'll need to create a new app with the command:
+Let's get the development server up and running in your terminal with:
 
 ```
-python manage.py startapp blog
+python manage.py runserver
 ```
+Navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser to check that your homepage is still functional. Then navigate to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) to access the admin log in page. Log in with the superuser you created in Step One.
 
-Then you need to add that app to `INSTALLED_APPS` in `myblog/settings/base.py`:
+Now you're in the Wagtail dashboard. You'll see lots of handy stuff like a list of the number of pages, your latest revisions, and other useful things. On the left hand side is the main toolbar for Wagtail. Select "Pages" from this toolbar and then click the "Home" link.
 
-```
-INSTALLED_APPS = [
-    "home",
-    "search",
-    # Insert this
-    "blog",
-    "wagtail_localize",
-    "wagtail_localize.locales",
-    "wagtail.contrib.forms",
-    "wagtail.contrib.redirects",
-    # ...
-]
-```
-<br/>
+You'll be taking to Home parent page listing, which is pretty empty right now because there aren't any pages inheriting from the Home page yet. Click the three little dots next to "Home" at the top of the page to open the action menu. Choose "Edit".
 
-* * *
-## :memo: A quick note on project structure :memo:
-In Wagtail projects, it is generally a good idea to keep related models in separate apps because it makes it a little easier for you to manage changes that affect migrations. Also, it makes it a little easier to decide where to put new code or models. Some Wagtail developers like to use a "core" or "base" app for models that are used across their projects. Others prefer not to use that approach because it can make future migrations a little trickier to manage. Both approaches are valid! For this tutorial though, we're going to use the separate app approach.
+Now we're going to add some data to our blog. Feel free to choose your own theme. But if you're not feeling particularly inspired, you can join me in filling out "Badger Bonanza" for the title and "Musings on Earth's most noble and distinctive mammal" for the summary. You'll need a picture too. Feel free to use this [lovely badger](https://upload.wikimedia.org/wikipedia/commons/4/41/M%C3%A4yr%C3%A4_%C3%84ht%C3%A4ri_4.jpg) from Wikimedia Commons. Click "Choose an image" and then upload the image to Wagtail.
 
-* * *
+![Screenshot of home page in Wagtail admin](https://www.meagenvoss.com/media/images/Screen_Shot_2022-09-28_at_9.16.11_PM.original.png)
 
-<br/>
+When you're done adding the content, go to the bottom of the page and use the big green button to save your draft. Then click on the arrow next to "Save draft" to open up the publish menu and click "Publish" to publish the page.
 
-Now that you have a blog app added to your project, navigate to `blog/models.py`. We're going to create two new page types for our blog. Wagtail is a CMS that uses a tree structure to organize content. There are parent pages and child pages. The ultimate parent page by default is the Home page. All other page types branch off of the Home page. Then child pages can branch off of those pages too.
+![Screenshot of Wagtail publish button](https://www.meagenvoss.com/media/images/Screen_Shot_2022-10-05_at_11.56.07_PM.original.png)
 
-First, you need to create a parent type for the blog. Most Wagtail developers will call these pages "index" pages, so this one will be called `BlogPageIndex`. Add the following code to your `models.py` file in the blog app:
+Go ahead and click the "View Live" link when it comes up.
+
+Oh no! There's no badger! Did we do something wrong? Nope. We have to remove the default homepage that came with Wagtail, so let's do that.
+
+## Remove the default homepage
+
+Go to `home/templates/home/home_page.html` and delete everything in the file except for the first line `{% extends "base.html" %}`. Update the file so it looks like this:
 
 ```
+{% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
 
-from wagtail.models import Page
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
+{% block body_class %}template-homepage{% endblock %}
 
+{% block content %}
 
-class BlogIndexPage(Page):
-    intro = RichTextField(blank=True)
+<h1>{{ page.title }}</h1>
 
-    content_panels = Page.content_panels + [
-        FieldPanel('intro')
-    ]
+<p>{{page.summary}}</p>
+
+{% image page.main_image max-500x500 %}
+
+{% endblock %}
 ```
+Save the file and then reload your homepage. You should now see the title of your blog, the summary, and a beautiful badger (if you chose to go with my badger theme rather than your own).
 
-This is a very simple version of `BlogIndexPage` with only a single `intro` field to describe the blog. You'll be adding a few more things to it later, but this will work right now for getting your blog set up.
-
-Next, we need to create a child page called `BlogPage`. Think about the fields you need for a reader to enjoy a blog post. The title is included by default, so what else do you need? Blogs can get pretty messy without dates to organize them, so you'll need a `date` frield for sure. Let's type:
-
-```
-class BlogPage(Page):
-    date = models.DateField("Post date")
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-    ]
+Now, the summary might look a little funky. And that is because text fields do not print with escaped characters by default. Fortunately, Wagtail comes with a handy filter, among many other [handy filters](https://docs.wagtail.org/en/stable/topics/writing_templates.html#template-tags-and-filters), that can render the text properly. Update the `{{page.summary}}` line so that it is:
 
 ```
-
-Let's add an `intro` field to this page type too so that you can use it to give readers a preview of the blog post.
-
+<p>{{page.summary|richtext}}</p>
 ```
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
+Refresh the page and the summary text should be displaying properly now.
 
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-    ]
-```
+Before you move on from this task, let's clean your templates and organize things a bit. Navigate to `myblog\templates` and create a new directory in it called `home`. Move `home_page.html` to the new `home` directory. Refresh the page to make sure it still works. The delete the `templates` directory in the `home` app. While you're there, you can also delete the `static` folder in the the `home` app because all that is in it is some CSS for the default home page.
 
-Note that `intro` has `max_length` added to it. This provides a character limit on the field so that writers won't get too long-winded and break your website's design with descriptions that are too long. You're welcome to give them more characters to work with if you want to.
-
-You'll also need a `body` field to provide a place to put your post content (since creating a blog without a place to put content kind of defeats the purpose of a blog). 
-
-```
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
-```
-
-## Making your blog searchable
-
-Now, those fields are a good start for a basic blog. While we're here though, let's take a moment to make the content of your blog searchable. Update `models.py` with this code:
-
-```
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = RichTextField(blank=True)
-
-    search_fields = Page.search_fields + [
-        index.SearchField('intro'),
-        index.SearchField('body'),
-    ]
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
-```
-
-Then add `from wagtail.search import index` to your import statements so that the whole file looks like this:
-
-```
-from django.db import models
-
-from wagtail.models import Page
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
-from wagtail.search import index
-
-
-class BlogIndexPage(Page):
-    intro = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('intro')
-    ]
-
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = RichTextField(blank=True)
-
-    search_fields = Page.search_fields + [
-        index.SearchField('intro'),
-        index.SearchField('body'),
-    ]
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
-```
-
-Save all of your work. Then run `python manage.py makemigrations` and `python manage.py migrate` to check that the fields have been added to the Wagtail admin.
-
-## Adding Wagtail StreamField
-
-One of the best parts of Wagtail is [StreamField](https://docs.wagtail.org/en/stable/topics/streamfield.html). StreamField gives users the power to mix and match different "blocks" of content rather than having a strict structure for a page. For example, someone writing a blog post could add a "quote" block to highlight a particular quote or phrase from their post. Or they could add a "sidebar" block that includes a little extra bonus content on the page. There aren't many limits to the types of blocks you can create.
-
-To show you StreamField in action, you're going to create a simple StreamField implementation in the blog post `body` using some of the [default blocks](https://docs.wagtail.org/en/stable/reference/streamfield/blocks.html?highlight=blocks) that come with Wagtail. First, add these import statements to your `models.py` file:
-
-```
-from wagtail.fields import StreamField
-from wagtail.embeds.blocks import EmbedBlock
-from wagtail import blocks
-from wagtail.images.blocks import ImageChooserBlock
-```
-
-
-Next, replace the `body` definition from `RichTextField` in your `BlogPage` class with the following code:
-
-```
-    body = StreamField([
-        ('heading', blocks.CharBlock(form_classname="title")),
-        ('paragraph', blocks.RichTextBlock()),
-        ('image', ImageChooserBlock()),
-        ('embed', EmbedBlock(max_width=800, max_height=400)),
-    ], use_json_field=True)
-```
-
-Save your file and then run the migration commands `python manage.py makemigrations` and `python manage.py migrate`. Start up the development server real quick with `python manage.py runserver` then have a look at a blank Blog Page. You'll notice that the "body" section now has a row of blocks for you to choose from.
-
-<br />
-
-***
-
-## :warning: Be aware of custom models :warning:
-
-Before we move on, I want to call attention to one major quirk of Django and Wagtail : custom models. In the Django documentation, it says "It’s highly recommended to set up a custom user model, even if the default User model is sufficient for you." This is because creating a custom user model in the middle of a project or with an existing database is a huge hassle. Even very smart people haven't figure out how to create a migration fix for it yet. The Django ticket to solve this issue has been open for years.
-
-To save some time, we're not going to add custom models to our Wagtail project in this workshop. If you want to add the models afterwards, here are the key models you should consider creating custom models for and links to the appropriate documentation:
-
-- [User](https://docs.wagtail.org/en/stable/advanced_topics/customisation/custom_user_models.html#custom-user-models)
-- [AbstractImage and AbstractRendition](https://docs.wagtail.org/en/stable/advanced_topics/images/custom_image_model.html#custom-image-model)
-- [AbstractDocument](https://docs.wagtail.org/en/stable/advanced_topics/documents/custom_document_model.html#id1)
+This structure will help you stay organized by keeping all of your templates in one directory. Trust me, any frontend developers you work with will thank you. And then they will find something else to pick on, but that's the way of things.
