@@ -1,61 +1,200 @@
-# Step Five: Translate your content
+# Step Five: Add translatable navigation
 
-Let's work on translating the English content so that we have some content in French to work with as well. We're going to use `wagtail-localize` to help save time by syncing our content from the primary language of our blog.
+In this step, you're going to learn about Wagtail Snippets. Snippets are pieces of code that can be used in multiple places across a project but that aren't a part of the page tree. Some common uses for Snippets include author profiles, menus, and footer content. The nice thing about Wagtail is you can use `TranslatableMixin` to make your snippets translatable by Wagtail Localize.
 
-## Setting up your new locale
+## Add a navigation app
 
-To set up a locale for French, go to the lefthand menu, click "Settings", then click "Locales". On the righthand side, click the green "Add a locale" button. In the "Language" dropdown menu, choose "French". 
+To follow the separate apps structure, you're going to create a new app for all of the pieces related to website navigation. To create the app, type the following command into your terminal:
 
-Beneath the dropdown is an option to synchronize content from the main language of your website. Click the green "Enable" button. Check the "Enabled" checkbox and then select "English" from the "Sync from" menu. Click "Save" to save your changes.
+```
+python manage.py startapp navigation
+```
 
-![Screenshot showing how to add a locale to Wagtail](https://www.meagenvoss.com/media/images/Screen_Shot_2022-10-03_at_4.21.46_PM.original.png)
+You'll need to update your `INSTALLED_APPS` in `myblog/settings/base.py` so that the top of it looks like this:
 
-Now click "Pages" on the lefthand menu and you'll see there are now _two_ versions of "Badger Blog." One says "English" next to it and the other says "French." Click on the "French" version of "Badger Blog" to edit it. You'll be presented with an option to translate the "Badger Blog" page and all of the pages in the subtree. Check the box to translate all of the pages. 
+```
+INSTALLED_APPS = [
+    "home",
+    "search",
+    "blog",
+    "navigation",
+    "wagtail_localize.locales",
+    "wagtail.contrib.forms",
+    "wagtail.contrib.redirects",
+    # ...
+]
+```
 
-![Screenshot showing the translate subtree option in Wagtail](https://www.meagenvoss.com/media/images/Screen_Shot_2022-10-03_at_4.23.52_PM.original.png)
+You'll use this app to store the models related to your translatable navigation snippets as well as some template tags that we'll use to help display the correct text for each locale. Curious what template tags are? You'll find out soon.
 
-Now when you open the "Pages" menu, you should see two copies of your page trees: one labeled "English" and another labeled "French".
+## Add a model for a translatable navigation menu
 
-Click "Edit" for the French version of the "Badger Blog" Page to edit the content. The page will open up in a translation view. The translation view provides the content in the original language and provides you with some different options to translate it.
+We're going to add a translatable main navigation menu at the top of the page so you make sure the pages you want to display specifically for each locale appear in the menu.
 
-![Screenshot of the initial translation view for Badger Blog](https://www.meagenvoss.com/media/images/Screen_Shot_2022-10-13_at_6.58.01_AM.original.png)
+First, let's add some import statements to `navigation/models.py`:
 
-## Translate using PO files
+```
+from django.db import models
 
-PO files are the file format used by professional translators for translating a variety of structured content, including websites. If you are going to be working with a living, breathing human translator, this could be a good option for your project. The advantages of the PO file is that everything can be translated in one file, and you can send that file to a translator without having to give them access to the admin section of your website.
+from wagtail.admin.edit_handlers import FieldPanel
+from wagtail.models import TranslatableMixin
+from wagtail.snippets.models import register_snippet
+from wagtail.admin.panels import PageChooserPanel
 
-To use the PO file method, click the "Download PO file" button to download the file. Then either send the file to a translator or use a program like [Poedit](https://poedit.net/download) to edit the file and translate it. Once the file has been translated, you can upload it to your page with the "Upload PO File" button.
+```
 
-Once the file is uploaded, check that there are green checkmarks throughout your page. Click the promote tab too and make sure the slug has been translated as well. Once everything is translated click the big green "Publish in French" button at the bottom to publish the page.
+You'll need `TranslatableMixin` to make your menu translatable, `FieldPanel` and `PageChooserPanel` to add the panels you need to the admin interface, and `register_snippet` to add this model as a Snippet rather than a Wagtail page model. Here's how you will set up the Snippet:
 
-## Translate manually
+```
+@register_snippet
+class MainNavigation (TranslatableMixin, models.Model):
+    name = models.CharField(max_length=255)
 
-You can also use the Wagtail Localize plugin to translate content manually as well. This approach is best to use if you decide you are okay with creating a log in for your translator or if someone who will be working on the website regularly is also translating the content. To do manually translation, go through each item on the page and click "Translate". Once you are done adding the translation, click "Save" to save your changes. Do this for each piece of content on the page. Click the "Promote" tab to translate the slug as well. Once you're done, click "Publish in French" at the bottom of the page to publish the page.
+    menu_page = models.ForeignKey(
+          'wagtailcore.Page',
+          null=True,
+          blank=True,
+          on_delete=models.SET_NULL,
+          related_name='menu_page'
+      )
 
-**NOTE** Be very careful of using quote marks in your translations. Quote marks in certain languages are different from the quote marks used in HTML. So if there are any links in your content, you need to make sure you're using the right type of quote marks in any HTML included in your translations.
+    panels = [
+        FieldPanel("name"),
+        PageChooserPanel('menu_page'),
+    ]
 
-## Machine translation
+    def __str__(self):
+        return self.name
 
-You can also hit the third button on the page to use the machine translation integration you set up earlier. Now since you set up the Wagtail Localize dummy translator, all it will do here is reverse all of the strings on the page. But it will give you an idea how Deepl or Google Cloud Translation would work if you set them up. If you use this option for your translation, you'll need to click back into the page and publish the results by clicking the "Publish in French" button.
+    class Meta:
+        verbose_name_plural = "Main navigation"
+        unique_together = [
+            ("translation_key", "locale"),
+        ]
 
-## Translate and publish your pages
+```
 
-Using whichever method you prefer, go through and translate your "Blog" page as well as your "Badgers are brilliant" article. Be sure to publish each one of those pages after you finish adding your translations.
+Let's look at the different pieces. In setting up the class, you're telling `MainNavigation` to call on `TranslatableMixin` and `models.Model`. In the next lines, you're creating a field called `name` and you are creating a `menu_page` field with a `ForeignKey` that allows you to access all existing `Page` models on your website. Then we're telling Wagtail to offer two panels for managing those models.
 
-## Syncing content from your main language
+The `PageChooserPanel` is a Wagtail feature that brings up a handy page selecter menu. That way, users can select from existing pages without having to re-enter a bunch of information. It's a very useful shortcut!
 
-Let's try syncing some changes from a blog written in your main language. In the lefthand menu, go to "Pages" then click the arrow to the right until you see "Badgers are brilliant". Play with the language switcher in the admin above it if you want to see how easy it is to switch between the languages. Click on the pencil to open the edit page for "Badgers are brilliant".
+The line for `return self.name` is so that your snippet items will appear by name in the admin. Then under `Meta`, `verbose_name_plural` provides a plural version of the Snippet label so you can keep the grammar hawks at your workplace happy. The `unique_together` is required for `TranslatableMixin`. It ties key pieces of your models together in the database and helps keep your locales organized.
 
-![Screenshot of an example of the admin language switcher](https://www.meagenvoss.com/media/images/Screen_Shot_2022-10-13_at_7.07.57_AM.original.png)
+Once you've added these pieces, do your migrations steps to update the database:
+
+```
+python manage.py makemigrations
+python manage.py migrate
+```
+
+## Add a template tag for the navigation menu
+
+Now that you have a model set up, you're going to need a way to pull model data into the correct templates and locales. You're going to accomplish that with a custom [template tag](https://docs.djangoproject.com/en/3.2/howto/custom-template-tags/). Template tags are bits of code that process data provided by a model and organize it before you pull the data into a template.
+
+Since the template tag is related to navigation, go ahead and add a new directory to the `navigation` app called `templatetags`. In the directory, add a blank `__init__.py` file and a file called `navigation_tags.py`. Open `navigation_tags.py`. Add these three import statements to the top of the file.
+
+```
+from django import template
+
+from wagtail.models import Page, Locale
+
+from navigation.models import MainNavigation
+
+register = template.Library()
+```
+
+You'll need `template` to set up the `register` variable needed for custom template tags. You'll also need the models that you're going to be manipulating, which is why you're importing `MainNavigation` and `Page` models.
 
 
-Scroll down to the body. You're going to add the link to this [YouTube video](https://www.youtube.com/watch?v=c36UNSoJenI) about an escape artist badger to the line "They can break out of zoos." Add the link by highlighting the text and selecting the link option from the menu. When the link menu pops up, click "External link" to add the link to text.
+ With this template tag, you're going to collect all of the items for the menu and then you're going to use a function to filter them. Open `navigation/templatetags/navigation_tags.py` and add the following code above the code for your footer template tag:
 
-Publish the page with the new changes. After you hit Publish, you'll be returned to the menu for the "Blog" parent page. Hover over "Badgers are brilliant" and click the "More" button. Select "Sync translated pages."
+```
+@register.inclusion_tag("navigation/main_navigation.html", takes_context=True)
+def get_main_navigation(context):
+    menu_items = []
 
-![Screenshot of syncing translated pages](https://www.meagenvoss.com/media/images/Screen_Shot_2022-10-03_at_5.17.00_PM.original.png)
+    try:
+        menu_items = MainNavigation.objects.filter(locale=Locale.get_active()).select_related("menu_page")
+    except MainNavigation.DoesNotExist:
+        pass
 
-After you set up the sync, navigate to the French version of the page. Your changes to the content will be highlighted in yellow and you can translate them or insert local content. Notice how links and images are separated from the text and can be changed to make them more appealing to a French audience. For example, if you wanted to include a link to a video that was in French or that had French subtitles switched on, you could include a unique link in the French version of the blog. You're welcome to try this by including a link to a different video in the French version. Perhaps this video on [European badgers](https://www.youtube.com/watch?v=PvpNx0Hxtdk) would be more appropriate for your French audience.
+    if not menu_items:
+        try:
+            menu_items = MainNavigation.objects.filter(locale=Locale.get_default()).select_related("menu_page")
+        except MainNavigation.DoesNotExist:
+            pass
+    return {
+        "menu_items": menu_items,
+    }
+```
 
-All right. Now that we've added some content to your blog and translated it into French, we're going to add a translatable menu and a translatable footer to our website so that you can see how Snippets work in Wagtail as well as how you can translate them.
+You could narrow down the objects to `.localized` objects in the template tag here if you wanted to rather than using `Locale`. But I want to demonstrate how you can select `.localized` objects in the template. So let's look at how to do that in the next section.
 
+## Add a template for the navigation menu
+
+Under `myblog/templates/navigation`, add a file called `main_navigation.html`. Then add this code to the file:
+
+```
+{% load wagtailcore_tags %}
+
+<div class = "navigation">
+    <ul>
+        {% for menu_item in menu_items %}
+               <li><a href = "{% pageurl menu_item.menu_page.localized %}"> {{ menu_item.name }}</a></li>
+        {% endfor %}
+    </ul>
+</div>
+```
+
+With this code, you're using a `for` statement to sort through all of the items in the `menu_items` variable and then an `if` statement to determine which ones are `.localized` and associated with the locale of that particular page. Then you're using a default `pageurl` template tag that comes with Wagtail and the `title` for each item to create links for your navigation menu.
+
+Now you need to add the template tag to `base.html`. Insert this code after the `<head>` section and before the `<body>` section:
+
+```
+<header>
+    {% get_main_navigation %}
+</header>
+```
+
+Then go up to Line 1 of `base.html` and add `main_navigation` so that the line looks like this:
+
+```
+{% load static wagtailcore_tags wagtailuserbar main_navigation %}
+```
+
+Save all of your changes if you haven't already and then run `python manage.py runserver`. You may have to restart the server to get the template tage to register properly.
+
+Navigate to your home page at [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin). Go to "Snippets" in the lefthand menu and choose "Main Navigation". Click "Add main navigation" to add a menu item. If you need some inspiration, you can name your first item "Home" with menu text "Home" and the menu URL "http://127.0.0.1:8000". You'll also want to add an item for your blog with the name "Blog", the menu text "Blog" and the URL "http://127.0.0.1:8000/blog." After adding these items, navigate to  [http://127.0.0.1:8000/en](http://127.0.0.1:8000/en) and confirm that your menu is displaying properly.
+
+Since you've already translated your pages to French, you should see one set of pages displayed on the menu in [http://127.0.0.1:8000/en](http://127.0.0.1:8000/en) and another set displayed on [http://127.0.0.1:8000/fr](http://127.0.0.1:8000/fr).
+
+
+## Add a language switcher
+
+One last item that is super handy on a website with multiple languages is a language switcher that can rotate through the different locales.
+
+Add a file to `myblog/templates/navigation` called `switcher.html`. Then add these lines to the file:
+
+```
+{% load i18n wagtailcore_tags %}
+{% if page %}
+    {% for translation in page.get_translations.live %}
+        {% get_language_info for translation.locale.language_code as lang %}
+        <a href="{% pageurl translation %}" rel="alternate" hreflang="{{ lang.code }}">
+            {{ lang.name_local }}
+        </a>
+    {% endfor %}
+{% endif %}
+```
+This code uses a combination of the i18n features in Django and Wagtail's translation features to collect all of the available live translations with `{% for translation in page.get_translations.live %}` and then collects all of the available languages with `{% get_language_info for translation.locale.language_code as lang %}`.
+
+The next lines create a URL for each one of the translations and connects them to the appropriate language for the page that is displaying. Because there are only two locales available in this tutorial, they will just toggle back and forth between English and French.
+
+To add the switcher to your template, got to `base.html` and update your `<header>` to look like this:
+
+```
+<header>
+        {% include "navigation/switcher.html" %}
+        {% get_main_navigation %}
+</header>
+```

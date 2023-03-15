@@ -1,0 +1,9 @@
+{% load wagtailcore_tags %}
+
+<div class = "navigation">
+    <ul>
+        {% for menu_item in menu_items %}
+               <li><a href = "{% pageurl menu_item.menu_page.localized %}"> {{ menu_item.name }}</a></li>
+        {% endfor %}
+    </ul>
+</div>

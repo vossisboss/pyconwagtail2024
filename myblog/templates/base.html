@@ -1,4 +1,4 @@
-{% load static wagtailcore_tags wagtailuserbar %}
+{% load static wagtailcore_tags wagtailuserbar navigation_tags %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -23,6 +23,11 @@
         {# Override this in templates to add extra stylesheets #}
         {% endblock %}
     </head>
+
+    <header>
+        {% include "navigation/switcher.html" %}
+        {% get_main_navigation %}
+    </header>
 
     <body class="{% block body_class %}{% endblock %}">
         {% wagtailuserbar %}
