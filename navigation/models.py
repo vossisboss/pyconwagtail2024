@@ -5,8 +5,6 @@ from wagtail.models import TranslatableMixin
 from wagtail.snippets.models import register_snippet
 from wagtail.admin.panels import PageChooserPanel
 
-
-# Create your models here.
 @register_snippet
 class MainNavigation (TranslatableMixin, models.Model):
     name = models.CharField(max_length=255)
@@ -32,4 +30,3 @@ class MainNavigation (TranslatableMixin, models.Model):
         unique_together = [
             ("translation_key", "locale"),
         ]
-

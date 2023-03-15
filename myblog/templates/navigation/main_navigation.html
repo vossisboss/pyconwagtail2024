@@ -3,9 +3,7 @@
 <div class = "navigation">
     <ul>
         {% for menu_item in menu_items %}
-            {% if menu_item.localized %}
-               <li><a href = "{% pageurl menu_item.localized %}"> {{ menu_item.localized.title }}</a></li>
-            {% endif %}
+               <li><a href = "{% pageurl menu_item.menu_page.localized %}"> {{ menu_item.name }}</a></li>
         {% endfor %}
     </ul>
 </div>
