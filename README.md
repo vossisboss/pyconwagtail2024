@@ -1,80 +1,163 @@
-# Step One: Set up Wagtail
+# Step Two: Extend home page model
 
-## Create a virtual environment
+Before you start adding content, you'll need to add some models to Wagtail. Wagtail models are derived from [Django models](https://docs.djangoproject.com/en/4.1/topics/db/models/). One key difference in writing models for Wagtail is that adding views isn't necessary unless you need to create a highly customized view or form. We'll go over this in a bit more detail when you add templates to your project. For right now, you mostly need to know that models provide the essential fields and structures for the content on your Wagtail site that will be stored in your database.
 
-### _Gitpod_
+Many of the steps you'll be doing here have been borrowed from the [Getting Started tutorial](https://docs.wagtail.org/en/stable/getting_started/tutorial.html) for Wagtail.
 
-If you don't have Python already installed on your machine or if you would prefer not to troubleshoot environment issues, then you can complete this workshop in Gitpod. You will have to be more careful about saving your work since Gitpod environments deactivate after a period of inactivity.
+## Extending the `HomePage` model
 
-Click the button below to launch Gitpod.
+Right out of the box, Wagtail comes with a `home` app that provides a blank `HomePage` model. This model will define the home page of your website and what content appears on it. Go to the `home` directory in your project and open up `models.py`. You'll see that all the model currently has in it by default is a `pass` command. So you're going to have to extend it to add content to your home page.
 
-**NOTE**: A GitHub account is required to use Gitpod
+ Since this is a blog site, you should probably tell your readers what the blog is about and give them a reason to read it. All pages in Wagtail have a title by default, so you'll be able to add the blog title easily. So let's extend the `HomePage` model by adding a text field for a blog summary to the model.
 
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/vossisboss/pvdjango-gitpod)
-
-### _Venv_
-
-If you already have Python installed on your machine, you can create a local virtual environment using `venv`. Open your command line and navigate to the directory you want to build your project in. Then enter the following commands to creative a virtual environment.
+First, you'll need to add some additional import statements to the top of the page. This statement will import the `RichTextField` (one that lets you use bold, italics, and other formatting) from Wagtail:
 
 ```
-python 
-python -m venv env
-source env/bin/activate
-```
+from wagtail.fields import RichTextField
+ ```
 
-## Set up Wagtail
-
-Once you have a virtual environment set up, we can install Wagtail and start setting up our very first Wagtail website. In your project directory, enter the following command in your command line:
+And this statement will import the panel you need to make sure your new field appears in the Wagtail admin as well:
 
 ```
-pip install wagtail
+from wagtail.admin.panels import FieldPanel
 ```
 
-This command tells the Python package manager pip to install the latest release of Wagtail along with all of the dependencies that are needed for Wagtail. After Wagtail is installed, you can confirm that it is installed with:
+Once those import statements are added, delete `pass` from your `HomePage` model and replace it with:
 
 ```
-pip show wagtail
-```
+summary = RichTextField(blank=True)
 
-After Wagtail is installed, you can use one of Wagtail's built-in commands to start a brand new website. For this tutorial, we're going to be creating a mini-blog project called `myblog`.
-
-```
-wagtail start myblog .
-```
-
-Don't forget the `.` at the end of the command. It is telling Wagtail to put all of the files in the current working directory.
-
-Once all of the files are set up, you'll need to enter some commands to set up the test database and all of the migration files that Wagtail needs. You can do that with the `migrate` command.
+    content_panels = Page.content_panels + [
+        FieldPanel('summary'),
+    ]
 
 ```
+
+Your whole file should look like this right now:
+
+```
+
+from django.db import models
+
+from wagtail.models import Page
+from wagtail.fields import RichTextField
+from wagtail.admin.panels import FieldPanel
+
+
+class HomePage(Page):
+    summary = RichTextField(blank=True)
+
+    content_panels = Page.content_panels + [
+        FieldPanel('summary'),
+    ]
+```
+
+Awesome! So what else do we need to have an attractive home page for the blog? An image is something most readers find appealing, so let's add an image to the `HomePage` model as well. Add the following code beneath your `summary` variable:
+
+```
+main_image = models.ForeignKey(
+        "wagtailimages.Image",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+```
+
+And then add another line to `content_panels`:
+```
+FieldPanel('main_image'),
+```
+
+Your full `models.py` file should like like this now:
+
+```
+from dataclasses import Field
+from django.db import models
+
+from wagtail.models import Page
+from wagtail.fields import RichTextField
+from wagtail.admin.panels import FieldPanel
+
+
+class HomePage(Page):
+    summary = RichTextField(blank=True)
+    main_image = models.ForeignKey(
+        "wagtailimages.Image",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    content_panels = Page.content_panels + [
+        FieldPanel('summary'),
+        FieldPanel('main_image'),
+    ]
+
+```
+
+Now you have fields for a summary and for adding an image to your home page. To add those fields to the database, run the following migration commands:
+
+```
+python manage.py makemigrations
 python manage.py migrate
 ```
 
-After the migrations are complete, you'll need to create a superuser so that you can access the backend of your Wagtail website. Use the following command:
+## Check your fields with the development server 
 
-```
-python manage.py createsuperuser
-```
-Follow the prompts in your command line to create your superuser. Once you have a superuser set up, you can start up the test server to see your new Wagtail site in action.
+Let's get the development server up and running in your terminal with:
 
 ```
 python manage.py runserver
 ```
-If the server has started up without any errors, you can navigate to [http://127.0.0.1:8000 ](http://127.0.0.1:8000 ) in your web browser to see your Wagtail website. If you've successfully installed Wagtail, you should see a home page with a large teal egg on it.
+Navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser to check that your homepage is still functional. Then navigate to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) to access the admin log in page. Log in with the superuser you created in Step One.
 
-To test that your superuser works, navigate to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) and login with the credentials you created.
+Now you're in the Wagtail dashboard. You'll see lots of handy stuff like a list of the number of pages, your latest revisions, and other useful things. On the left hand side is the main toolbar for Wagtail. Select "Pages" from this toolbar and then click the "Home" link.
 
-Now you have a basic Wagtail website set up. Next, we're going to add a package that will help you organize and translate content across different languages and locales.
+You'll be taking to Home parent page listing, which is pretty empty right now because there aren't any pages inheriting from the Home page yet. Click the three little dots next to "Home" at the top of the page to open the action menu. Choose "Edit".
 
-<br />
+Now we're going to add some data to our blog. Feel free to choose your own theme. But if you're not feeling particularly inspired, you can join me in filling out "Badger Bonanza" for the title and "Musings on Earth's most noble and distinctive mammal" for the summary. You'll need a picture too. Feel free to use this [lovely badger](https://upload.wikimedia.org/wikipedia/commons/4/41/M%C3%A4yr%C3%A4_%C3%84ht%C3%A4ri_4.jpg) from Wikimedia Commons. Click "Choose an image" and then upload the image to Wagtail.
 
-* * *
+![Screenshot of home page in Wagtail admin](https://www.meagenvoss.com/media/images/Screen_Shot_2022-09-28_at_9.16.11_PM.original.png)
 
-## :memo: A quick note for Gitpod users :memo:
+When you're done adding the content, go to the bottom of the page and use the big green button to save your draft. Then click on the arrow next to "Save draft" to open up the publish menu and click "Publish" to publish the page.
 
-To log into the Wagtail backend, you're going to have to add a line of code to your `dev.py` file in settings. Navigate to `myblog/settings/dev.py` and add the following line of code to your file:
+![Screenshot of Wagtail publish button](https://www.meagenvoss.com/media/images/Screen_Shot_2022-10-05_at_11.56.07_PM.original.png)
+
+Go ahead and click the "View Live" link when it comes up.
+
+Oh no! There's no badger! Did we do something wrong? Nope. We have to remove the default homepage that came with Wagtail, so let's do that.
+
+## Remove the default homepage
+
+Go to `home/templates/home/home_page.html` and delete everything in the file except for the first line `{% extends "base.html" %}`. Update the file so it looks like this:
 
 ```
-CSRF_TRUSTED_ORIGINS = ['https://*.gitpod.io']
+{% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
+
+{% block body_class %}template-homepage{% endblock %}
+
+{% block content %}
+
+<h1>{{ page.title }}</h1>
+
+<p>{{page.summary}}</p>
+
+{% image page.main_image max-500x500 %}
+
+{% endblock %}
 ```
-<br />
+Save the file and then reload your homepage. You should now see the title of your blog, the summary, and a beautiful badger (if you chose to go with my badger theme rather than your own).
+
+Now, the summary might look a little funky. And that is because text fields do not print with escaped characters by default. Fortunately, Wagtail comes with a handy filter, among many other [handy filters](https://docs.wagtail.org/en/stable/topics/writing_templates.html#template-tags-and-filters), that can render the text properly. Update the `{{page.summary}}` line so that it is:
+
+```
+<p>{{page.summary|richtext}}</p>
+```
+Refresh the page and the summary text should be displaying properly now.
+
+Before you move on from this task, let's clean your templates and organize things a bit. Navigate to `myblog\templates` and create a new directory in it called `home`. Move `home_page.html` to the new `home` directory. Refresh the page to make sure it still works. The delete the `templates` directory in the `home` app. While you're there, you can also delete the `static` folder in the the `home` app because all that is in it is some CSS for the default home page.
+
+This structure will help you stay organized by keeping all of your templates in one directory. Trust me, any frontend developers you work with will thank you. And then they will find something else to pick on, but that's the way of things.
