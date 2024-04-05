@@ -9,7 +9,7 @@ from wagtail import images
 
 class HomePage(Page):
     summary = RichTextField(blank=True)
-     main_image = models.ForeignKey(
+    main_image = models.ForeignKey(
         images.get_image_model_string(),
         null=True,
         blank=True,
