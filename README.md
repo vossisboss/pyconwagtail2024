@@ -8,7 +8,7 @@ Many of the steps you'll be doing here have been borrowed from the [Getting Star
 
 Right out of the box, Wagtail comes with a `home` app that provides a blank `HomePage` model. This model will define the home page of your website and what content appears on it. Go to the `home` directory in your project and open up `models.py`. You'll see that all the model currently has in it by default is a `pass` command. So you're going to have to extend it to add content to your home page.
 
- Since this is a blog site, you should probably tell your readers what the blog is about and give them a reason to read it. All pages in Wagtail have a title by default, so you'll be able to add the blog title easily. So let's extend the `HomePage` model by adding a text field for a blog summary to the model.
+ Since this is going to be a blog site, you should probably tell your readers what the blog is about and give them a reason to read it. All pages in Wagtail have a title by default, so you'll be able to add the blog title easily. So let's extend the `HomePage` model by adding a text field for a blog summary to the model.
 
 First, you'll need to add some additional import statements to the top of the page. This statement will import the `RichTextField` (one that lets you use bold, italics, and other formatting) from Wagtail:
 
