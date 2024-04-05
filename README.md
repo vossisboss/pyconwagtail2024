@@ -64,7 +64,7 @@ If the server has started up without any errors, you can navigate to [http://127
 
 To test that your superuser works, navigate to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) and login with the credentials you created.
 
-Now you have a basic Wagtail website set up. Next, we're going to add a package that will help you organize and translate content across different languages and locales.
+Now you have a basic Wagtail website set up. Next, we're going to add some models so that we can start adding content to the website.
 
 <br />
 
