@@ -1,163 +1,169 @@
-# Step Two: Extend home page model
+# Step Three: Add custom models
 
-Before you start adding content, you'll need to add some models to Wagtail. Wagtail models are derived from [Django models](https://docs.djangoproject.com/en/4.1/topics/db/models/). One key difference in writing models for Wagtail is that adding views isn't necessary unless you need to create a highly customized view or form. We'll go over this in a bit more detail when you add templates to your project. For right now, you mostly need to know that models provide the essential fields and structures for the content on your Wagtail site that will be stored in your database.
+One thing I always like to call attention to is custom models. Because Wagtail is built on top of Django, it has the same quirks as Django does when it comes to custom models. In the Django documentation, it says "It’s highly recommended to set up a custom user model, even if the default User model is sufficient for you." This is because creating a custom user model in the middle of a project or with an existing database is a huge hassle. Even very smart people haven't figure out how to create a migration fix for it yet. The ticket to solve this issue has been open for _years_.
 
-Many of the steps you'll be doing here have been borrowed from the [Getting Started tutorial](https://docs.wagtail.org/en/stable/getting_started/tutorial.html) for Wagtail.
+Anyway, I bring this up because Wagtail has some other models that are worth customizing before you go too far into a project so that you can save yourself some grief later on. For this workshop, we're only going to set up the custom `Image` and `Renditions` models today, but we'll provide reference links for the other Wagtail models you should customize, including the `User` model and the Wagtail `Documents` model.
 
-## Extending the `HomePage` model
-
-Right out of the box, Wagtail comes with a `home` app that provides a blank `HomePage` model. This model will define the home page of your website and what content appears on it. Go to the `home` directory in your project and open up `models.py`. You'll see that all the model currently has in it by default is a `pass` command. So you're going to have to extend it to add content to your home page.
-
- Since this is going to be a blog site, you should probably tell your readers what the blog is about and give them a reason to read it. All pages in Wagtail have a title by default, so you'll be able to add the blog title easily. So let's extend the `HomePage` model by adding a text field for a blog summary to the model.
-
-First, you'll need to add some additional import statements to the top of the page. This statement will import the `RichTextField` (one that lets you use bold, italics, and other formatting) from Wagtail:
+Because we're using the separate app structure for our project, we're going to put our custom models in a `custom_media` app. Type the following command into your terminal:
 
 ```
-from wagtail.fields import RichTextField
- ```
-
-And this statement will import the panel you need to make sure your new field appears in the Wagtail admin as well:
-
-```
-from wagtail.admin.panels import FieldPanel
+python manage.py startapp custom_media
 ```
 
-Once those import statements are added, delete `pass` from your `HomePage` model and replace it with:
+Then update the code in your `INSTALLED_APPS` in `myblog/settings/base.py` to include the new apps:
 
 ```
-summary = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('summary'),
-    ]
+INSTALLED_APPS = [
+    "home",
+    "search",
+    "custom_media",
+]
 
 ```
 
-Your whole file should look like this right now:
+
+Now let's navigate to `custom_media/models.py` and update the file so that it looks like this:
 
 ```
-
 from django.db import models
+from wagtail.documents.models import Document, AbstractDocument
 
-from wagtail.models import Page
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
+from wagtail.images.models import Image, AbstractImage, AbstractRendition
 
 
-class HomePage(Page):
-    summary = RichTextField(blank=True)
+class CustomImage(AbstractImage):
+    # Add any extra fields to image here
 
-    content_panels = Page.content_panels + [
-        FieldPanel('summary'),
-    ]
-```
+    # To add a caption field:
+    # caption = models.CharField(max_length=255, blank=True)
 
-Awesome! So what else do we need to have an attractive home page for the blog? An image is something most readers find appealing, so let's add an image to the `HomePage` model as well. Add the following code beneath your `summary` variable:
-
-```
-main_image = models.ForeignKey(
-        "wagtailimages.Image",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="+",
+    admin_form_fields = Image.admin_form_fields + (
+        # Then add the field names here to make them appear in the form:
+        # 'caption',
     )
+
+
+class CustomRendition(AbstractRendition):
+    image = models.ForeignKey(CustomImage, on_delete=models.CASCADE, related_name='renditions')
+
+    class Meta:
+        unique_together = (
+            ('image', 'filter_spec', 'focal_point_key'),
+        )
 ```
 
-And then add another line to `content_panels`:
+Let's take a closer look at some of the comments in the code here. You'll notice that there is an option to add a `caption` field to the image model. Wagtail doesn't include an image caption by default. Many projects need an image caption field for crediting photographers and artists. The `CustomImage` model is the best place to do that.
+
+The `CustomImage` model is also one of the best places to add a field for alt text, which is very important for people who navigate websites with screenreaders. By default, Wagtail uses the title of an image for the alt text. This is not ideal, but currently that default provides the most flexibility for developers to customize projects according to their specific needs and accessibility standards.
+
+Still, it is a good idea to add a standard `default_alt_text` field, so we're going to go ahead and add one to our `CustomImage` model and make it mandatory so that people won't forget to add it.
+
+Add the following line under the comment line for the caption field:
+
 ```
-FieldPanel('main_image'),
+default_alt_text = models.CharField(max_length=255, blank=True)
 ```
 
-Your full `models.py` file should like like this now:
+So now the full `models.py` file should look like:
 
 ```
-from dataclasses import Field
 from django.db import models
+from wagtail.documents.models import Document, AbstractDocument
 
-from wagtail.models import Page
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
+from wagtail.images.models import Image, AbstractImage, AbstractRendition
 
 
-class HomePage(Page):
-    summary = RichTextField(blank=True)
+class CustomImage(AbstractImage):
+    # Add any extra fields to image here
+
+    # To add a caption field:
+    # caption = models.CharField(max_length=255, blank=True)
+    default_alt_text = models.CharField(max_length=255, blank=True)
+
+    admin_form_fields = Image.admin_form_fields + (
+        # Then add the field names here to make them appear in the form:
+        # 'caption',
+    )
+
+
+class CustomRendition(AbstractRendition):
+    image = models.ForeignKey(CustomImage, on_delete=models.CASCADE, related_name='renditions')
+
+    class Meta:
+        unique_together = (
+            ('image', 'filter_spec', 'focal_point_key'),
+        )
+```
+
+Once you have the models set up, you'll have to updating your image model reference. First, you'll need to add the following settings to the bottom of your `base.py` settings file:
+
+```
+# Custom models
+
+WAGTAILIMAGES_IMAGE_MODEL = 'custom_media.CustomImage'
+
+```
+
+
+Thie setting tells Wagtail which custom model you're using. Even with this set though, you're going to have update some references in your code as well. Fortunately, you only need to make one update for this particular project. Navigate to `home/models.py`. Then add the following import statement to the top of your file:
+
+```
+from wagtail import images
+```
+Then update your `main_image` model so that it looks like this:
+
+```
     main_image = models.ForeignKey(
-        "wagtailimages.Image",
+        images.get_image_model_string(),
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="+",
     )
+```
+What you're doing with this code is collecting the string for the name of your CustomImage model so that you can point Wagtail to your custom model instead of the default `wagtailimages` model.
 
-    content_panels = Page.content_panels + [
-        FieldPanel('summary'),
-        FieldPanel('main_image'),
-    ]
+### Custom User model
+
+Now, you might be wondering why I didn't have you go through the migration steps after adding those last few models. Welp, it's because we've been reaching the part of the tutorial I've been warning you about. After we add the `CustomUser` model, we're going to have to reset our migrations. Why? Let's find out together here.
+
+First, navigate to `custom_user/models.py` and add the following code to your file and save it:
 
 ```
+from django.db import models
 
-Now you have fields for a summary and for adding an image to your home page. To add those fields to the database, run the following migration commands:
+from django.contrib.auth.models import AbstractUser
+
+class User(AbstractUser):
+    pass
+```
+Then navigate to your `base.py` file in settings and update the `Custom model` section to include the custom user model:
 
 ```
-python manage.py makemigrations
-python manage.py migrate
+# Custom models
+
+WAGTAILIMAGES_IMAGE_MODEL = 'custom_media.CustomImage'
+
+WAGTAILDOCS_DOCUMENT_MODEL = 'custom_media.CustomDocument'
+
+AUTH_USER_MODEL = 'custom_user.User'
 ```
 
-## Check your fields with the development server 
 
-Let's get the development server up and running in your terminal with:
+Now save your code and run the migration commands `python manage.py makemigrations` and `python manage.py migrate`. You should get an error message that is similar to "Migration admin.0001_initial is applied before its dependency app.0001_initial on database 'default' ". Tables related to the `User` model in Django are some of the very first that are set up when you start a new project. So if you try to apply a custom version of the `User` model after the initial migration for your first app, you're going to get an error.
 
-```
-python manage.py runserver
-```
-Navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser to check that your homepage is still functional. Then navigate to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) to access the admin log in page. Log in with the superuser you created in Step One.
+How do we fix this then? There are a few different appraoches you can take. Because your project is still in development though and you're currently using the default sqlite database for working on it, one of the easiest approaches for beginners to learn is to reset the migrations.
 
-Now you're in the Wagtail dashboard. You'll see lots of handy stuff like a list of the number of pages, your latest revisions, and other useful things. On the left hand side is the main toolbar for Wagtail. Select "Pages" from this toolbar and then click the "Home" link.
+There are multiple approaches to resetting migrations too. But for this project, we're going to delete all our existing migration files along with the database then run our migration commands again. Here's how you do that.
 
-You'll be taking to Home parent page listing, which is pretty empty right now because there aren't any pages inheriting from the Home page yet. Click the three little dots next to "Home" at the top of the page to open the action menu. Choose "Edit".
+1. Go to each `migrations` folder for the `blog` app (we'll go in alaphabetical order).
+2. Delete all of the files in the folder except for `__init.py__`.
+3. Open the `pycache` folder in the `migrations` folder and delete all of the files there as well.
 
-Now we're going to add some data to our blog. Feel free to choose your own theme. But if you're not feeling particularly inspired, you can join me in filling out "Badger Bonanza" for the title and "Musings on Earth's most noble and distinctive mammal" for the summary. You'll need a picture too. Feel free to use this [lovely badger](https://upload.wikimedia.org/wikipedia/commons/4/41/M%C3%A4yr%C3%A4_%C3%84ht%C3%A4ri_4.jpg) from Wikimedia Commons. Click "Choose an image" and then upload the image to Wagtail.
+Repeat this process for the `home` app. There shouldn't be any migration files in `custom_media` or `custom_user` yet but you can doublecheck that if you want. Next, find your database. It should have a name like `db.sqlite3`. Delete your database file as well.
 
-![Screenshot of home page in Wagtail admin](https://www.meagenvoss.com/media/images/Screen_Shot_2022-09-28_at_9.16.11_PM.original.png)
+Make sure one more time that all of your migration files have been removed. Then run your first migration command `python manage.py makemigrations` to create the new migrations you need. If you receive an error, delete all of the migration files and the database again. Be extra sure the you removed the `pycache` files in each app as well. If there is no error, then run `python manage.py migrate` to create fresh migrations in your database.
 
-When you're done adding the content, go to the bottom of the page and use the big green button to save your draft. Then click on the arrow next to "Save draft" to open up the publish menu and click "Publish" to publish the page.
+Since you deleted the database, you're going to have to create a new superuser to access the admin section of Wagtail again. So run `python manage.py createsuperuser` to create a new superuser. Then test it by running `python manage.py runserver` and navigating to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) to log in.
 
-![Screenshot of Wagtail publish button](https://www.meagenvoss.com/media/images/Screen_Shot_2022-10-05_at_11.56.07_PM.original.png)
-
-Go ahead and click the "View Live" link when it comes up.
-
-Oh no! There's no badger! Did we do something wrong? Nope. We have to remove the default homepage that came with Wagtail, so let's do that.
-
-## Remove the default homepage
-
-Go to `home/templates/home/home_page.html` and delete everything in the file except for the first line `{% extends "base.html" %}`. Update the file so it looks like this:
-
-```
-{% extends "base.html" %}
-{% load wagtailcore_tags wagtailimages_tags %}
-
-{% block body_class %}template-homepage{% endblock %}
-
-{% block content %}
-
-<h1>{{ page.title }}</h1>
-
-<p>{{page.summary}}</p>
-
-{% image page.main_image max-500x500 %}
-
-{% endblock %}
-```
-Save the file and then reload your homepage. You should now see the title of your blog, the summary, and a beautiful badger (if you chose to go with my badger theme rather than your own).
-
-Now, the summary might look a little funky. And that is because text fields do not print with escaped characters by default. Fortunately, Wagtail comes with a handy filter, among many other [handy filters](https://docs.wagtail.org/en/stable/topics/writing_templates.html#template-tags-and-filters), that can render the text properly. Update the `{{page.summary}}` line so that it is:
-
-```
-<p>{{page.summary|richtext}}</p>
-```
-Refresh the page and the summary text should be displaying properly now.
-
-Before you move on from this task, let's clean your templates and organize things a bit. Navigate to `myblog\templates` and create a new directory in it called `home`. Move `home_page.html` to the new `home` directory. Refresh the page to make sure it still works. The delete the `templates` directory in the `home` app. While you're there, you can also delete the `static` folder in the the `home` app because all that is in it is some CSS for the default home page.
-
-This structure will help you stay organized by keeping all of your templates in one directory. Trust me, any frontend developers you work with will thank you. And then they will find something else to pick on, but that's the way of things.
+Now you have a good foundation for customizing these critical models. You might not feel like this has added a lot to the project. But trust me, you'll be glad you took these steps further down the line. Next, we're going to add some additional models to our code called `snippets` along with some templates that will help our website look a little nicer.
