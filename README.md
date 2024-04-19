@@ -1,5 +1,9 @@
 # Step Four: Creating a basic blog
 
+:warning: **Do not change any of the identifiers** (model or field names) in the given code snippets, or the data import script we offer to speed up the process of creating your demo blog pages will not work.
+
+---
+
 Now that you've extended the Home page and added some custom models that we'll need, let's add the key parts of our blog. To do that, you'll need to create a new app with the command:
 
 ```
@@ -236,13 +240,20 @@ class BlogPage(Page):
 
 Save your file and then run the migration commands `python manage.py makemigrations` and `python manage.py migrate`. Start up the development server real quick with `python manage.py runserver` then have a look at a blank Blog Page. You'll notice that the "body" section now has a green plus sign in it. When you click on it, a collection of blocks will appear for you to choose from. You can experiment with combining blocks if you want to.
 
+## Load some demo pages
+
+Rather than creating your own blog index and blog pages, it might be easier to run a script to load these into your database. Running our script will also help by ensuring that you have an example accessibility issue that we'll look at later.
+
+Copy the contents of [`/blog/mangement/commands/seed_data.py`](https://github.com/vossisboss/pyconwagtail2024/blob/step-4/blog/management/commands/seed_data.py) from this branch and paste it in the same location in your project. Then run `python manage.py seed_data` to load up our demo Blog Index Page and a child Blog Page. After it completes, refresh the Wagtail admin to see the new pages there.
+
 ---
 
 TODO:
 
-- Add section where we load initial content via fixture to ensure people see the accessibility issues we want to demonstrate.
-  - Add note to earlier sections to make sure people don't change any of the names in the same code, or the fixture won't work.
-- Add "Adding templates for your blog pages" section from previous tutorial's Step 4
-  - Make a couple intentional accessibility errors along the lines of what Scott fixes in the Bakery Demo during his DjangoCon talk (but don't call attention to them in this README)
-- Add some basic styling to myblog.css that attendees can paste in
-- End this step by viewing the frontend with our imported content
+- [x] Add section where we load initial content via fixture to ensure people see the accessibility issues we want to demonstrate.
+  - [x] Add note to earlier sections to make sure people don't change any of the names in the same code, or the fixture won't work.
+- [ ] End this step by viewing the frontend with our imported content
+- [ ] Add "Adding templates for your blog pages" section from previous tutorial's Step 4
+  - [ ] Make a couple intentional accessibility errors along the lines of what Scott fixes in the Bakery Demo during his DjangoCon talk (but don't call attention to them in this README)
+- [ ] Add some basic styling to myblog.css that attendees can paste in
+- [ ] Configure Wagtail's accessibility checker to show more errors
