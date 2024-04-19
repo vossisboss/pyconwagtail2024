@@ -1,4 +1,4 @@
-# Step Three: Creating a basic blog
+# Step Four: Creating a basic blog
 
 Now that you've extended the Home page and added some custom models that we'll need, let's add the key parts of our blog. To do that, you'll need to create a new app with the command:
 
@@ -236,3 +236,12 @@ class BlogPage(Page):
 
 Save your file and then run the migration commands `python manage.py makemigrations` and `python manage.py migrate`. Start up the development server real quick with `python manage.py runserver` then have a look at a blank Blog Page. You'll notice that the "body" section now has a green plus sign in it. When you click on it, a collection of blocks will appear for you to choose from. You can experiment with combining blocks if you want to.
 
+---
+
+TODO:
+
+- Add section where we load initial content via fixture to ensure people see the accessibility issues we want to demonstrate.
+  - Add note to earlier sections to make sure people don't change any of the names in the same code, or the fixture won't work.
+- Add "Adding templates for your blog pages" section from previous tutorial's Step 4
+  - Make a couple intentional accessibility errors along the lines of what Scott fixes in the Bakery Demo during his DjangoCon talk (but don't call attention to them in this README)
+- End this step by viewing the frontend with our imported content
