@@ -244,4 +244,5 @@ TODO:
   - Add note to earlier sections to make sure people don't change any of the names in the same code, or the fixture won't work.
 - Add "Adding templates for your blog pages" section from previous tutorial's Step 4
   - Make a couple intentional accessibility errors along the lines of what Scott fixes in the Bakery Demo during his DjangoCon talk (but don't call attention to them in this README)
+- Add some basic styling to myblog.css that attendees can paste in
 - End this step by viewing the frontend with our imported content
