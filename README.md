@@ -1,293 +1,74 @@
-# Step Four: Creating a basic blog
+# Step Five: Using the Wagtail Accessibility Checker
 
-:warning: **Do not change any of the identifiers** (model or field names) in the given code snippets, or the data import script we offer to speed up the process of creating your demo blog pages will not work.
+[Wagtail's built-in accessibility checker](https://guide.wagtail.org/en-latest/releases/new-in-wagtail-4-2/#built-in-accessibility-checker) (added in Wagtail 4.2 in January 2023) is the hallmark feature of our efforts to improve the accessibility of sites made with Wagtail. It's based on [the Axe engine from Deque Systems](https://www.deque.com/axe/), which you may be familiar with from [its browser extension](https://www.deque.com/get-started-axe-devtools-browser-extension/) or other tools that use it under the hood, like [Google's Lighthouse](https://developer.chrome.com/docs/lighthouse/overview). The goal of the Wagtail accessibility checker is to make it easy for content editors to identify accessibility issues that they can address themselves.
+
+To try it out, open the frontend of your site at http://127.0.0.1:8000 and look for the Wagtail user bar in the lower right corner. Thanks to an intentional mistake included in the template code we provided in the previous step, you should see a red badge on the Wagtail icon indicating one error on the page:
+
+INSERT SCREENSHOT
+
+Open up the user bar and click on the **Accessibility** item to show what errors it found. For each error it located, you can click on the button showing the tag name with a crosshair icon to highlight that part of the page.
+
+INSERT SCREENSHOT OF LOCATOR BUTTON
+
+In this case, it's telling us that there is an empty heading, and it's pointing at the `<h2>` in the footer of the page, but that's actually not the _only_ error we introduced! Some of them aren't being displayed because, as mentioned previously, the accessibility checker is meant for editors to find things that they can correct in their content, so its default configuration leaves out many of the errors that Axe can display but that only a developer can address.
+
+As developers, we recommend that you enable the display of all possible errors when you are logged in as an admin-level user, so that you can be made aware of those errors that you should fix in your code. To do that, we'll use one of Wagtail's [hooks]() to customize the behavior of the accessibility checker depending on user level.
+
+Copy this code and paste it into a new `wagtail_hooks.py` file in your `home` app folder:
+
+```python
+from wagtail import hooks
+from wagtail.admin.userbar import AccessibilityItem
+
+
+class CustomAccessibilityItem(AccessibilityItem):
+    def get_axe_run_only(self, request):
+        # Do not limit what rule sets run if the user is a superuser
+        if request.user.is_superuser:
+            return None
+        # Otherwise, use the default rule sets
+        return AccessibilityItem.axe_run_only
+
+
+@hooks.register("construct_wagtail_userbar")
+def replace_userbar_accessibility_item(request, items):
+    items[:] = [
+        CustomAccessibilityItem() if isinstance(item, AccessibilityItem) else item
+        for item in items
+    ]
+```
+
+Wagtail will automatically load any `wagtail_hooks.py` files that it finds within app folders, and when it loads this one, it will use the `construct_wagtail_userbar` hook to replace the stock `AccessibilityItem` with the `CustomAccessibilityItem` that we subclassed from it above.
+
+After saving the file, refresh your homepage and you will see a new error: "All page content should be contained by landmark". ([Landmarks](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/landmark_role) are used by assistive technology to help users navigate between the major areas of a page.) This is an example of the kind of error that can't be addressed by an editor and must be addressed by a developer through changing the template code.
+
+We have two instances of this error to take care of: the header and the main content area. For the header, we could solve this by applying a `role="banner"` attribute to the wrapping `div`, but a better practice is to use newer HTML elements with semantic meanings and implicit landmark roles. Instead of adding `role` attribute, the Let's change the element that's wrapping our site header from a `div` to `header`.
+
+In `myblog/templates/base.html`, update the header area to look like this:
+
+```django
+    <header>
+        {% include "navigation/switcher.html" %}
+        {% get_main_navigation %}
+    </header>
+```
+
+The main content area is currently not wrapped in anything at all (not counting `body`), so let's contain all of the rest of the page content by adding a `main` element around `{% block content %}` (again in `myblog/templates/base.html`):
+
+```django
+    <main id="main">
+        {% block content %}{% endblock %}
+    </main>
+```
+
+(The `id="main"` also provides a convenient hook for adding a [skip link](https://webaim.org/techniques/skipnav/), which we won't be doing in this tutorial, but you should definitely look into!)
+
+Save those changes, refresh your homepage in the browser, and you should see the landmark error has cleared!
+
+Returning to the empty heading error, this one can be solved in the Wagtail admin. It's looking for the site's name, but sites in Wagtail are not given names by default. To fix it, go to the site settings at http://127.0.0.1:8000/admin/sites/edit/2/ and put something in the site name field. After saving that, refresh the homepage in your browser and see that the accessibility checker is no longer reporting any issues.
 
 ---
 
-Now that you've extended the Home page and added some custom models that we'll need, let's add the key parts of our blog. To do that, you'll need to create a new app with the command:
+Now that we have tried out the Wagtail accessibility checker and fixed some issues that it's reported, let's dig deeper on some of the most common accessibility issues that we see out there.
 
-```shell
-python manage.py startapp blog
-```
-
-Then you need to add that app to `INSTALLED_APPS` in `myblog/settings/base.py`:
-
-```python
-INSTALLED_APPS = [
-    "blog",
-    "home",
-    "search",
-    "custom_media",
-    "wagtail.contrib.forms",
-    "wagtail.contrib.redirects",
-    # ...
-]
-```
-<br/>
-
-* * *
-## :memo: A quick note on project structure :memo:
-In Wagtail projects, it is generally a good idea to keep related models in separate apps because it makes it a little easier for you to manage changes that affect migrations. Also, it makes it a little easier to decide where to put new code or models. Some Wagtail developers like to use a "core" or "base" app for models that are used across their projects. Others prefer not to use that approach because it can make future migrations a little trickier to manage. Both approaches are valid! For this tutorial though, we're going to use the separate app approach.
-
-* * *
-
-<br/>
-
-Now that you have a blog app added to your project, navigate to `blog/models.py`. We're going to create two new page types for our blog. Wagtail is a CMS that uses a tree structure to organize content. There are parent pages and child pages. The ultimate parent page by default is the Home page. All other page types branch off of the Home page. Then child pages can branch off of those pages too.
-
-First, you need to create a parent type for the blog. Most Wagtail developers will call these pages "index" pages, so this one will be called `BlogPageIndex`. Add the following code to your `models.py` file in the blog app:
-
-```python
-from wagtail.models import Page
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
-
-
-class BlogIndexPage(Page):
-    intro = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('intro')
-    ]
-
-    subpage_types = ['blog.BlogPage']
-```
-
-This is a very simple version of `BlogIndexPage` with only a single `intro` field to describe the blog. You'll be adding a few more things to it later, but this will work right now for getting your blog set up. We're also adding a setting called `subpage_type` that will link `BlogIndexPage` to a specific child page type. It's unlikely that blog editors will be creating any other page types connected to `BlogIndexPage`, so adding this setting improves their user experience by reducing the number of clicks they have to make to set up a page.
-
-Next, we need to create a child page called `BlogPage`. Think about the fields you need for a reader to enjoy a blog post. The title is included by default, so what else do you need? Blogs can get pretty messy without dates to organize them, so you'll need a `date` frield for sure. Let's type:
-
-```python
-class BlogPage(Page):
-    date = models.DateField("Post date")
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-    ]
-```
-
-Let's add an `intro` field to this page type too so that you can use it to give readers a preview of the blog post.
-
-```python
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-    ]
-```
-
-Note that `intro` has `max_length` added to it. This provides a character limit on the field so that writers won't get too long-winded and break your website's design with descriptions that are too long. You're welcome to give them more characters to work with if you want to.
-
-You'll also need a `body` field to provide a place to put your post content (since creating a blog without a place to put content kind of defeats the purpose of a blog). We're also going to add the `parent_page_type` setting to link `BlogPage` to `BlogIndexPage`.
-
-```python
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
-
-    parent_page_types = ['blog.BlogIndexPage']
-```
-
-## Making your blog searchable
-
-Now, those fields are a good start for a basic blog. While we're here though, let's take a moment to make the content of your blog searchable. Update `models.py` with this code:
-
-```python
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = RichTextField(blank=True)
-
-    search_fields = Page.search_fields + [
-        index.SearchField('intro'),
-        index.SearchField('body'),
-    ]
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
-
-    parent_page_types = ['blog.BlogIndexPage']
-```
-
-Then add `from wagtail.search import index` to your import statements so that the whole file looks like this:
-
-```python
-from django.db import models
-
-from wagtail.models import Page
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel
-from wagtail.search import index
-
-
-class BlogIndexPage(Page):
-    intro = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('intro')
-    ]
-
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = RichTextField(blank=True)
-
-    search_fields = Page.search_fields + [
-        index.SearchField('intro'),
-        index.SearchField('body'),
-    ]
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
-
-    parent_page_types = ['blog.BlogIndexPage']
-```
-
-Save all of your work. Then run `python manage.py makemigrations` and `python manage.py migrate` to check that the fields have been added to the Wagtail admin.
-
-## Adding Wagtail StreamField
-
-One of the best parts of Wagtail is [StreamField](https://docs.wagtail.org/en/stable/topics/streamfield.html). StreamField gives users the power to mix and match different "blocks" of content rather than having a strict structure for a page. For example, someone writing a blog post could add a "quote" block to highlight a particular quote or phrase from their post. Or they could add a "sidebar" block that includes a little extra bonus content on the page. There aren't many limits to the types of blocks you can create.
-
-To show you StreamField in action, you're going to create a simple StreamField implementation in the blog post `body` using some of the [default blocks](https://docs.wagtail.org/en/stable/reference/streamfield/blocks.html?highlight=blocks) that come with Wagtail. First, update your import statements in your `models.py` file so they look like this:
-
-```python
-from wagtail.models import Page
-from wagtail.fields import RichTextField, StreamField
-from wagtail.admin.panels import FieldPanel
-from wagtail.search import index
-from wagtail.embeds.blocks import EmbedBlock
-from wagtail import blocks
-from wagtail.images.blocks import ImageChooserBlock
-```
-
-Then, at the top of the file under the imports, add this one custom block that we'll start with:
-
-```python
-class HeadingBlock(blocks.StructBlock):
-    size = blocks.ChoiceBlock(
-        choices=[
-            ("h2", "H2"),
-            ("h3", "H3"),
-            ("h4", "H4"),
-        ],
-    )
-    text = blocks.CharBlock()
-
-    class Meta:
-        icon = "title"
-        template = "blocks/heading_block.html"
-```
-
-Next, replace the `body` definition from `RichTextField` in your `BlogPage` class with the following code:
-
-```python
-    body = StreamField(
-        [
-            ("heading", HeadingBlock()),
-            ("paragraph", blocks.RichTextBlock()),
-            ("image", ImageChooserBlock()),
-            ("embed", EmbedBlock(max_width=800, max_height=400)),
-        ]
-    )
-```
-
-Your whole file should now look like this:
-
-```python
-from django.db import models
-
-from wagtail.models import Page
-from wagtail.fields import RichTextField, StreamField
-from wagtail.admin.panels import FieldPanel
-from wagtail.search import index
-from wagtail.embeds.blocks import EmbedBlock
-from wagtail import blocks
-from wagtail.images.blocks import ImageChooserBlock
-
-
-class HeadingBlock(blocks.StructBlock):
-    size = blocks.ChoiceBlock(
-        choices=[
-            ("h2", "H2"),
-            ("h3", "H3"),
-            ("h4", "H4"),
-        ],
-    )
-    text = blocks.CharBlock()
-
-    class Meta:
-        icon = "title"
-        template = "blocks/heading_block.html"
-
-
-class BlogIndexPage(Page):
-    intro = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel('intro')
-    ]
-
-    subpage_types = ['blog.BlogPage']
-
-
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = StreamField(
-        [
-            ("heading", HeadingBlock()),
-            ("paragraph", blocks.RichTextBlock()),
-            ("image", ImageChooserBlock()),
-            ("embed", EmbedBlock(max_width=800, max_height=400)),
-        ]
-    )
-
-    search_fields = Page.search_fields + [
-        index.SearchField('intro'),
-        index.SearchField('body'),
-    ]
-
-    content_panels = Page.content_panels + [
-        FieldPanel('date'),
-        FieldPanel('intro'),
-        FieldPanel('body'),
-    ]
-
-    parent_page_types = ['blog.BlogIndexPage']
-```
-
-Save your file and then run the migration commands `python manage.py makemigrations` and `python manage.py migrate`. Start up the development server real quick with `python manage.py runserver` then have a look at a blank Blog Page. You'll notice that the "body" section now has a green plus sign in it. When you click on it, a collection of blocks will appear for you to choose from. You can experiment with combining blocks if you want to.
-
-## Load some demo pages
-
-Rather than creating your own blog index and blog pages, it might be easier to run a script to load these into your database. Running our script will also help by ensuring that you have an example accessibility issue that we'll look at later.
-
-Copy the contents of [`/blog/mangement/commands/seed_data.py`](https://github.com/vossisboss/pyconwagtail2024/blob/step-4/blog/management/commands/seed_data.py) from this branch and paste it in the same location in your project. Then run `python manage.py seed_data` to load up our demo Blog Index Page and a child Blog Page. After it completes, refresh the Wagtail admin to see the new pages there.
-
----
-
-TODO:
-
-- [x] Add section where we load initial content via fixture to ensure people see the accessibility issues we want to demonstrate.
-  - [x] Add note to earlier sections to make sure people don't change any of the names in the same code, or the fixture won't work.
-- [ ] Incorporate CSS and (some?) HTML into new project template that gets brought in with `wagtail start` in step 1
-  - [ ] Make a couple intentional accessibility errors along the lines of what Scott fixes in the Bakery Demo during his DjangoCon talk (but don't call attention to them in this README)
-- [ ] Add "Adding templates for your blog pages" section from previous tutorial's Step 4 for any HTML bits we didn't include in the project template
-- [ ] End this step by viewing the frontend with our imported content
+[Continue to Step 6](https://github.com/vossisboss/pyconwagtail2024/tree/step-6)
