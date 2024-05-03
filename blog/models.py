@@ -9,6 +9,21 @@ from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 
 
+class HeadingBlock(blocks.StructBlock):
+    size = blocks.ChoiceBlock(
+        choices=[
+            ("h2", "H2"),
+            ("h3", "H3"),
+            ("h4", "H4"),
+        ],
+    )
+    text = blocks.CharBlock()
+
+    class Meta:
+        icon = "title"
+        template = "blocks/heading_block.html"
+
+
 class BlogIndexPage(Page):
     intro = RichTextField(blank=True)
 
@@ -18,15 +33,18 @@ class BlogIndexPage(Page):
 
     subpage_types = ['blog.BlogPage']
 
+
 class BlogPage(Page):
     date = models.DateField("Post date")
     intro = models.CharField(max_length=250)
-    body = StreamField([
-        ('heading', blocks.CharBlock(form_classname="title")),
-        ('paragraph', blocks.RichTextBlock()),
-        ('image', ImageChooserBlock()),
-        ('embed', EmbedBlock(max_width=800, max_height=400)),
-    ])
+    body = StreamField(
+        [
+            ("heading", HeadingBlock()),
+            ("paragraph", blocks.RichTextBlock()),
+            ("image", ImageChooserBlock()),
+            ("embed", EmbedBlock(max_width=800, max_height=400)),
+        ]
+    )
 
     search_fields = Page.search_fields + [
         index.SearchField('intro'),
