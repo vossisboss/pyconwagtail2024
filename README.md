@@ -6,13 +6,13 @@
 
 Now that you've extended the Home page and added some custom models that we'll need, let's add the key parts of our blog. To do that, you'll need to create a new app with the command:
 
-```
+```shell
 python manage.py startapp blog
 ```
 
 Then you need to add that app to `INSTALLED_APPS` in `myblog/settings/base.py`:
 
-```
+```python
 INSTALLED_APPS = [
     "blog",
     "home",
@@ -37,8 +37,7 @@ Now that you have a blog app added to your project, navigate to `blog/models.py`
 
 First, you need to create a parent type for the blog. Most Wagtail developers will call these pages "index" pages, so this one will be called `BlogPageIndex`. Add the following code to your `models.py` file in the blog app:
 
-```
-
+```python
 from wagtail.models import Page
 from wagtail.fields import RichTextField
 from wagtail.admin.panels import FieldPanel
@@ -58,19 +57,18 @@ This is a very simple version of `BlogIndexPage` with only a single `intro` fiel
 
 Next, we need to create a child page called `BlogPage`. Think about the fields you need for a reader to enjoy a blog post. The title is included by default, so what else do you need? Blogs can get pretty messy without dates to organize them, so you'll need a `date` frield for sure. Let's type:
 
-```
+```python
 class BlogPage(Page):
     date = models.DateField("Post date")
 
     content_panels = Page.content_panels + [
         FieldPanel('date'),
     ]
-
 ```
 
 Let's add an `intro` field to this page type too so that you can use it to give readers a preview of the blog post.
 
-```
+```python
 class BlogPage(Page):
     date = models.DateField("Post date")
     intro = models.CharField(max_length=250)
@@ -85,7 +83,7 @@ Note that `intro` has `max_length` added to it. This provides a character limit 
 
 You'll also need a `body` field to provide a place to put your post content (since creating a blog without a place to put content kind of defeats the purpose of a blog). We're also going to add the `parent_page_type` setting to link `BlogPage` to `BlogIndexPage`.
 
-```
+```python
 class BlogPage(Page):
     date = models.DateField("Post date")
     intro = models.CharField(max_length=250)
@@ -104,7 +102,7 @@ class BlogPage(Page):
 
 Now, those fields are a good start for a basic blog. While we're here though, let's take a moment to make the content of your blog searchable. Update `models.py` with this code:
 
-```
+```python
 class BlogPage(Page):
     date = models.DateField("Post date")
     intro = models.CharField(max_length=250)
@@ -126,7 +124,7 @@ class BlogPage(Page):
 
 Then add `from wagtail.search import index` to your import statements so that the whole file looks like this:
 
-```
+```python
 from django.db import models
 
 from wagtail.models import Page
@@ -169,7 +167,7 @@ One of the best parts of Wagtail is [StreamField](https://docs.wagtail.org/en/st
 
 To show you StreamField in action, you're going to create a simple StreamField implementation in the blog post `body` using some of the [default blocks](https://docs.wagtail.org/en/stable/reference/streamfield/blocks.html?highlight=blocks) that come with Wagtail. First, update your import statements in your `models.py` file so they look like this:
 
-```
+```python
 from wagtail.models import Page
 from wagtail.fields import RichTextField, StreamField
 from wagtail.admin.panels import FieldPanel
@@ -179,21 +177,40 @@ from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 ```
 
+Then, at the top of the file under the imports, add this one custom block that we'll start with:
+
+```python
+class HeadingBlock(blocks.StructBlock):
+    size = blocks.ChoiceBlock(
+        choices=[
+            ("h2", "H2"),
+            ("h3", "H3"),
+            ("h4", "H4"),
+        ],
+    )
+    text = blocks.CharBlock()
+
+    class Meta:
+        icon = "title"
+        template = "blocks/heading_block.html"
+```
 
 Next, replace the `body` definition from `RichTextField` in your `BlogPage` class with the following code:
 
-```
-    body = StreamField([
-        ('heading', blocks.CharBlock(form_classname="title")),
-        ('paragraph', blocks.RichTextBlock()),
-        ('image', ImageChooserBlock()),
-        ('embed', EmbedBlock(max_width=800, max_height=400)),
-    ])
+```python
+    body = StreamField(
+        [
+            ("heading", HeadingBlock()),
+            ("paragraph", blocks.RichTextBlock()),
+            ("image", ImageChooserBlock()),
+            ("embed", EmbedBlock(max_width=800, max_height=400)),
+        ]
+    )
 ```
 
 Your whole file should now look like this:
 
-```
+```python
 from django.db import models
 
 from wagtail.models import Page
@@ -205,6 +222,21 @@ from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 
 
+class HeadingBlock(blocks.StructBlock):
+    size = blocks.ChoiceBlock(
+        choices=[
+            ("h2", "H2"),
+            ("h3", "H3"),
+            ("h4", "H4"),
+        ],
+    )
+    text = blocks.CharBlock()
+
+    class Meta:
+        icon = "title"
+        template = "blocks/heading_block.html"
+
+
 class BlogIndexPage(Page):
     intro = RichTextField(blank=True)
 
@@ -214,15 +246,18 @@ class BlogIndexPage(Page):
 
     subpage_types = ['blog.BlogPage']
 
+
 class BlogPage(Page):
     date = models.DateField("Post date")
     intro = models.CharField(max_length=250)
-    body = StreamField([
-        ('heading', blocks.CharBlock(form_classname="title")),
-        ('paragraph', blocks.RichTextBlock()),
-        ('image', ImageChooserBlock()),
-        ('embed', EmbedBlock(max_width=800, max_height=400)),
-    ])
+    body = StreamField(
+        [
+            ("heading", HeadingBlock()),
+            ("paragraph", blocks.RichTextBlock()),
+            ("image", ImageChooserBlock()),
+            ("embed", EmbedBlock(max_width=800, max_height=400)),
+        ]
+    )
 
     search_fields = Page.search_fields + [
         index.SearchField('intro'),
@@ -252,8 +287,7 @@ TODO:
 
 - [x] Add section where we load initial content via fixture to ensure people see the accessibility issues we want to demonstrate.
   - [x] Add note to earlier sections to make sure people don't change any of the names in the same code, or the fixture won't work.
-- [ ] End this step by viewing the frontend with our imported content
-- [ ] Add "Adding templates for your blog pages" section from previous tutorial's Step 4
+- [ ] Incorporate CSS and (some?) HTML into new project template that gets brought in with `wagtail start` in step 1
   - [ ] Make a couple intentional accessibility errors along the lines of what Scott fixes in the Bakery Demo during his DjangoCon talk (but don't call attention to them in this README)
-- [ ] Add some basic styling to myblog.css that attendees can paste in
-- [ ] Configure Wagtail's accessibility checker to show more errors
+- [ ] Add "Adding templates for your blog pages" section from previous tutorial's Step 4 for any HTML bits we didn't include in the project template
+- [ ] End this step by viewing the frontend with our imported content
