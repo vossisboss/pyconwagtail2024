@@ -1,74 +1,145 @@
-# Step Five: Using the Wagtail Accessibility Checker
+# Step Six: Using Custom Validation to Enforce Good Accessibility Practices
 
-[Wagtail's built-in accessibility checker](https://guide.wagtail.org/en-latest/releases/new-in-wagtail-4-2/#built-in-accessibility-checker) (added in Wagtail 4.2 in January 2023) is the hallmark feature of our efforts to improve the accessibility of sites made with Wagtail. It's based on [the Axe engine from Deque Systems](https://www.deque.com/axe/), which you may be familiar with from [its browser extension](https://www.deque.com/get-started-axe-devtools-browser-extension/) or other tools that use it under the hood, like [Google's Lighthouse](https://developer.chrome.com/docs/lighthouse/overview). The goal of the Wagtail accessibility checker is to make it easy for content editors to identify accessibility issues that they can address themselves.
+Let's take a look at one of the most common accessibility errors out there, but an easy one to address: **incorrect heading hierarchy**.
 
-To try it out, open the frontend of your site at http://127.0.0.1:8000 and look for the Wagtail user bar in the lower right corner. Thanks to an intentional mistake included in the template code we provided in the previous step, you should see a red badge on the Wagtail icon indicating one error on the page:
+Taking a look at the example blog post that the management command created for you (http://127.0.0.1:8000/demo-blog-index/hello-world/), you should see we're getting an error for incorrect heading hierarchy, and it's pointing to the smaller heading in the middle of the body content. The issue here is that we have an H2 at the top of the content, but then we're skipping right to H4 on the lower heading, with no H3 between.
 
-INSERT SCREENSHOT
+Screen readers and site crawlers rely on having a logical document structure to understand the content of your page, and headings are the primary way in which they interpret that structure. One way to think about this is like a big, multi-level, numbered outline in a Word document. If you indented two levels at once, that would look pretty strange and potentially confuse readers, wouldn't it? Similarly, webpage headings should avoid skipping levels, as they create the outline of the page.
 
-Open up the user bar and click on the **Accessibility** item to show what errors it found. For each error it located, you can click on the button showing the tag name with a crosshair icon to highlight that part of the page.
+Hopefully, your editors will see this warning in the accessibility checker, but you can also do more to help them avoid this mistake, using custom validation to prevent saving the page if such an error exists.
 
-INSERT SCREENSHOT OF LOCATOR BUTTON
+If you look at this page in the editor, you can see that the heading in question is entered into a Heading Block in the body StreamField. Wagtail 5.0, released about a year ago, introduced some [new ways to validate StreamField blocks](https://docs.wagtail.org/en/stable/releases/5.0.html#custom-validation-support-for-streamfield) (hat tip to Wagtail core developer Matt Westcott), and using these it's pretty simple to validate whether or not the headings in a StreamField are in a proper order when an editor attempts to save a page.
 
-In this case, it's telling us that there is an empty heading, and it's pointing at the `<h2>` in the footer of the page, but that's actually not the _only_ error we introduced! Some of them aren't being displayed because, as mentioned previously, the accessibility checker is meant for editors to find things that they can correct in their content, so its default configuration leaves out many of the errors that Axe can display but that only a developer can address.
+## Set up StreamBlock
 
-As developers, we recommend that you enable the display of all possible errors when you are logged in as an admin-level user, so that you can be made aware of those errors that you should fix in your code. To do that, we'll use one of Wagtail's [hooks]() to customize the behavior of the accessibility checker depending on user level.
+In order to take advantage of this new functionality, we'll have to slightly adjust the structure of how we defined our StreamField. Instead of listing the possible blocks directly within the `StreamField()` declaration, we'll instead create a [Stream_Block_](https://docs.wagtail.org/en/stable/topics/streamfield.html#streamblock) class that we can apply our custom validation to.
 
-Copy this code and paste it into a new `wagtail_hooks.py` file in your `home` app folder:
+First, create a new `blocks.py` file with the `blog` folder so we don't start to overload the `models.py` file.
+
+Copy and paste these imports at the top of `blog/blocks.py`:
 
 ```python
-from wagtail import hooks
-from wagtail.admin.userbar import AccessibilityItem
+from django.core.exceptions import ValidationError
 
-
-class CustomAccessibilityItem(AccessibilityItem):
-    def get_axe_run_only(self, request):
-        # Do not limit what rule sets run if the user is a superuser
-        if request.user.is_superuser:
-            return None
-        # Otherwise, use the default rule sets
-        return AccessibilityItem.axe_run_only
-
-
-@hooks.register("construct_wagtail_userbar")
-def replace_userbar_accessibility_item(request, items):
-    items[:] = [
-        CustomAccessibilityItem() if isinstance(item, AccessibilityItem) else item
-        for item in items
-    ]
+from wagtail.blocks import (
+    CharBlock,
+    ChoiceBlock,
+    RichTextBlock,
+    StreamBlock,
+    StreamBlockValidationError,
+    StructBlock,
+)
+from wagtail.embeds.blocks import EmbedBlock
+from wagtail.images.blocks import ImageChooserBlock
 ```
 
-Wagtail will automatically load any `wagtail_hooks.py` files that it finds within app folders, and when it loads this one, it will use the `construct_wagtail_userbar` hook to replace the stock `AccessibilityItem` with the `CustomAccessibilityItem` that we subclassed from it above.
+Then cut the entire `HeadingBlock` class from `models.py` and paste it into `blocks.py`.
 
-After saving the file, refresh your homepage and you will see a new error: "All page content should be contained by landmark". ([Landmarks](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/landmark_role) are used by assistive technology to help users navigate between the major areas of a page.) This is an example of the kind of error that can't be addressed by an editor and must be addressed by a developer through changing the template code.
+Now we'll set up our StreamBlock. It will have all the same features of the current blog page's `body` StreamField. Copy and paste this class into your `blocks.py` file, below the `HeadingBlock`:
 
-We have two instances of this error to take care of: the header and the main content area. For the header, we could solve this by applying a `role="banner"` attribute to the wrapping `div`, but a better practice is to use newer HTML elements with semantic meanings and implicit landmark roles. Instead of adding `role` attribute, the Let's change the element that's wrapping our site header from a `div` to `header`.
-
-In `myblog/templates/base.html`, update the header area to look like this:
-
-```django
-    <header>
-        {% include "navigation/switcher.html" %}
-        {% get_main_navigation %}
-    </header>
+```python
+class BaseStreamBlock(StreamBlock):
+    heading = HeadingBlock()
+    paragraph = RichTextBlock()
+    image = ImageChooserBlock()
+    embed = EmbedBlock(max_width=800, max_height=400)
 ```
 
-The main content area is currently not wrapped in anything at all (not counting `body`), so let's contain all of the rest of the page content by adding a `main` element around `{% block content %}` (again in `myblog/templates/base.html`):
+Now, back in `models.py`, update the `body` StreamField in the `BlogPage` class to use it. Remove the list of four blocks and insert a call to the new `BaseStreamBlock`, like so:
 
-```django
-    <main id="main">
-        {% block content %}{% endblock %}
-    </main>
+```python
+class BlogPage(Page):
+    date = models.DateField("Post date")
+    intro = models.CharField(max_length=250)
+    body = StreamField(BaseStreamBlock())
 ```
 
-(The `id="main"` also provides a convenient hook for adding a [skip link](https://webaim.org/techniques/skipnav/), which we won't be doing in this tutorial, but you should definitely look into!)
+You will also need to add an import of BaseStreamBlock to the top of `models.py`:
 
-Save those changes, refresh your homepage in the browser, and you should see the landmark error has cleared!
+```python
+from blog.blocks import BaseStreamBlock
+```
 
-Returning to the empty heading error, this one can be solved in the Wagtail admin. It's looking for the site's name, but sites in Wagtail are not given names by default. To fix it, go to the site settings at http://127.0.0.1:8000/admin/sites/edit/2/ and put something in the site name field. After saving that, refresh the homepage in your browser and see that the accessibility checker is no longer reporting any issues.
+Save everything and reload your editor. The experience should be exactly the same as it was before. You can also confirm that Django thinks nothing has changed by doing a dry run of `makemigrations`:
+
+```shell
+python manage.py makemigrations --dry-run
+```
+
+
+## Override `clean()` to add custom validation logic
+
+With that rearranging done, we can now add our custom validation to check heading hierarchy on save. In a pattern that may be familiar to you if you're experienced in Django, you can override the `StreamBlock` parent class's `clean()` method that is called when saving to try to validate the StreamBlock (actually, the entire StreamField in this case). Back in `blocks.py`, we'll be updating our `BaseStreamBlock` to add the custom `clean()` method:
+
+```python
+class BaseStreamBlock(StreamBlock):
+    heading = HeadingBlock()
+    paragraph = RichTextBlock()
+    image = ImageChooserBlock()
+    embed = EmbedBlock(max_width=800, max_height=400)
+    
+    def clean(self, value):
+        result = super().clean(value)
+
+        headings = [
+            # tuples of block index and heading level
+            (0, 1)  # mock H1 block at index 0
+        ]
+        errors = {}
+
+        # first iterate through all blocks in the StreamBlock
+        for i in range(0, len(result)):
+            # if a block is of type "heading?
+            if result[i].block_type == "heading":
+                # convert size string to integer
+                level = int(result[i].value.get("size")[-1:])
+                # append tuple of block index and heading level to list
+                headings.append((i, level))
+
+        # now iterate through list of headings,
+        # starting with second heading to skip over the mock H1 heading block
+        for i in range(1, len(headings)):
+            # compare its level to the previous heading's level
+            if int(headings[i][1]) - int(headings[i - 1][1]) > 1:
+                # if the difference is more than 1,
+                # add an error to the array with its original index
+                errors[headings[i][0]] = ValidationError(
+                    "Incorrect heading hierarchy. Avoid skipping levels."
+                )
+
+        if errors:
+            raise StreamBlockValidationError(block_errors=errors)
+
+        return result
+```
+
+This `clean()` method loops through all of the child blocks in the StreamBlock we're saving, and if they're a heading block, stores their size in a list of headings (which I prepopulated with a placeholder for the H1 that isn't part of the StreamField). Then we can loop through that list of headings – starting at the _second_ heading in the list – and compare its size to the previous heading's size. If the difference is greater than 1, we have identified an error in the heading hierarchy, so we add that to an errors dictionary, and then raise a `StreamBlockValidationError` at the end if that dictionary isn't empty.
+
+Return to the editor after putting that in place, and you'll see that if you try to save the "Hello, world!" blog page again, with its existing hierarchy issue, it will throw a validation error and prevent the save. Pretty cool! Swap the heading to an H2, and you'll see it save successfully. If you then I can add a new heading block at the bottom and set it to H4, skipping H3, you'll see that that will again throw a validation error.
+
+You may have noticed that the accessibility checker was also flagging a heading hierarchy issue on the heading within the rich text block at the bottom of the page. Since our rich text block is set up with the default features, editors can also create headings in rich text, in addition to the heading block. We'll need to add a little additional code to handle headings in rich text, as they are represented differently there. Add this condition below the original check to see if the block type was `heading`:
+
+```python
+            elif result[i].block_type == "paragraph":
+                # look for headings within the RichTextBlock and add those to the list
+                for match in re.findall(r"\<h[2-6]", result[i].render()):
+                    level = int(match[-1:])
+                    headings.append((i, level))
+```
+
+Save the file, and if you try to save the page in the editor again, you'll now see an error being reported on the rich text block containing the H4. If a rich text block contains multiple headings, it won't be able to pinpoint an error on a specific heading, but cluing the editor into checking the whole block is still valuable.
+
+
+## Further exploration
+
+A couple of notes that we won't address in this tutorial, but would be good for you to know for the future:
+
+- Wagtail also has `RichTextField`, a standard Django model field that can be used to provide a rich text editor outside of a StreamField. In that situation, you could subclass `RichTextField` and add your own custom `clean()` method.
+- If you have a page that supports a combination of StreamField and `RichTextField`, or maybe even has other kinds of fields that result in headings on the rendered page, you can override the `clean()` method of the page model itself, looping through it all to build a complete list of headings on the page and then checking each of those in succession.
+
 
 ---
 
-Now that we have tried out the Wagtail accessibility checker and fixed some issues that it's reported, let's dig deeper on some of the most common accessibility issues that we see out there.
+Our custom validation will help editors ensure they are using headings accessibly, but don't forget to make sure that any heading elements that are hardcoded into templates also follow a logical hierarchy!
 
-[Continue to Step 6](https://github.com/vossisboss/pyconwagtail2024/tree/step-6)
+[Continue to Step 7](https://github.com/vossisboss/pyconwagtail2024/tree/step-7)
