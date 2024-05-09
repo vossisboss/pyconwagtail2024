@@ -3,12 +3,15 @@ import re
 from django.core.exceptions import ValidationError
 
 from wagtail.blocks import (
+    BooleanBlock,
     CharBlock,
     ChoiceBlock,
     RichTextBlock,
     StreamBlock,
     StreamBlockValidationError,
     StructBlock,
+    StructBlockValidationError,
+    StructValue,
 )
 from wagtail.embeds.blocks import EmbedBlock
 from wagtail.images.blocks import ImageChooserBlock
@@ -29,10 +32,69 @@ class HeadingBlock(StructBlock):
         template = "blocks/heading_block.html"
 
 
+class ImageStructValue(StructValue):
+    def alt(self):
+        if self.get("decorative"):
+            return ""
+        else:
+            return self.get("alt_text") or self["image"].default_alt_text
+
+
+class ImageBlock(StructBlock):
+    image = ImageChooserBlock()
+    alt_text = CharBlock(
+        required=False,
+        help_text="Use to override the image's default alt text.",
+    )
+    decorative = BooleanBlock(
+        required=False,
+        help_text="If this image does not contain meaningful content or is described in nearby text, check this box to not output its alt text.",
+    )
+
+    def clean(self, value):
+        result = super().clean(value)
+
+        if result["alt_text"] and result["decorative"]:
+            raise StructBlockValidationError(
+                block_errors={
+                    "alt_text": ValidationError(
+                        "Marking an image as decorative will override alt text entered here. Empty this field or uncheck the decorative box."
+                    )
+                }
+            )
+
+        phrases = [
+            "graphic of",
+            "image of",
+            "pic of",
+            "picture of",
+            "photo of",
+            "photograph of",
+        ]
+        for phrase in phrases:
+            print(phrase)  # WHY IS THIS NOT ITERATING?????????????
+            if result["alt_text"].casefold().startswith(phrase):
+                raise StructBlockValidationError(
+                    block_errors={
+                        "alt_text": ValidationError(
+                            f"Do not start alt text with redundant phrases like {phrase}."
+                        )
+                    }
+                )
+            break
+
+        return result
+
+    class Meta:
+        icon = "image"
+        template = "blocks/image_block.html"
+        value_class = ImageStructValue
+
+
 class BaseStreamBlock(StreamBlock):
     heading = HeadingBlock()
     paragraph = RichTextBlock()
-    image = ImageChooserBlock()
+    image = ImageBlock()
     embed = EmbedBlock(max_width=800, max_height=400)
 
     def clean(self, value):

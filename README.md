@@ -1,145 +1,219 @@
-# Step Six: Using Custom Validation to Enforce Good Accessibility Practices
+# Step Seven: Best Practices for Images and Alt Text
 
-Let's take a look at one of the most common accessibility errors out there, but an easy one to address: **incorrect heading hierarchy**.
+The next major topic is one you've probably heard about if you've done web development for a decent amount of time: alt text!
 
-Taking a look at the example blog post that the management command created for you (http://127.0.0.1:8000/demo-blog-index/hello-world/), you should see we're getting an error for incorrect heading hierarchy, and it's pointing to the smaller heading in the middle of the body content. The issue here is that we have an H2 at the top of the content, but then we're skipping right to H4 on the lower heading, with no H3 between.
+If you're not familiar, alt text is a way to provide a _textual alternative_ of an image to screen readers, not displayed visibly, so that people who cannot see the image can hear what it is depicting. This is done using the `alt` attribute on an `img` element.
 
-Screen readers and site crawlers rely on having a logical document structure to understand the content of your page, and headings are the primary way in which they interpret that structure. One way to think about this is like a big, multi-level, numbered outline in a Word document. If you indented two levels at once, that would look pretty strange and potentially confuse readers, wouldn't it? Similarly, webpage headings should avoid skipping levels, as they create the outline of the page.
+The key question to ask yourself when considering alt text for an image is, "What description of this image would be useful to someone who's hearing this page read aloud?" And bear in mind that the answer may be _none._ Decorative images do not need alt text if hearing a description of them would not be useful. However, all `img` elements should have an `alt` attribute, and it should be left empty if the image is decorative.
 
-Hopefully, your editors will see this warning in the accessibility checker, but you can also do more to help them avoid this mistake, using custom validation to prevent saving the page if such an error exists.
+You can find many many articles on when and how to use alt text, but let's discuss how to implement it in Wagtail. Note: The stock implementation of alt text in Wagtail is under active development, so we'll try to give the best advice we can as of the date of this tutorial.
 
-If you look at this page in the editor, you can see that the heading in question is entered into a Heading Block in the body StreamField. Wagtail 5.0, released about a year ago, introduced some [new ways to validate StreamField blocks](https://docs.wagtail.org/en/stable/releases/5.0.html#custom-validation-support-for-streamfield) (hat tip to Wagtail core developer Matt Westcott), and using these it's pretty simple to validate whether or not the headings in a StreamField are in a proper order when an editor attempts to save a page.
+Wagtail has never had a field for alt text in its default image model, but it will default to using an image's title for the alt text if you render an image with Wagtail's standard `{% image %}` template tag. This isn't great, because the title you want to see in the admin interface may have no relation to useful alt text.
 
-## Set up StreamBlock
+Our current recommendation is three-fold:
 
-In order to take advantage of this new functionality, we'll have to slightly adjust the structure of how we defined our StreamField. Instead of listing the possible blocks directly within the `StreamField()` declaration, we'll instead create a [Stream_Block_](https://docs.wagtail.org/en/stable/topics/streamfield.html#streamblock) class that we can apply our custom validation to.
+1. Add an default alt text field to a custom image model, which we already did in step 3 and use that instead of the image's title field
+2. Add alt text fields and "is decorative" checkboxes alongside image choosers in the context of your page content
+3. Write your templates to use the in-context alt attribute, if present, or fall back on the default alt text from the model
 
-First, create a new `blocks.py` file with the `blog` folder so we don't start to overload the `models.py` file.
+Any given image may be used in multiple places on a site, and it's important that alt text be relevant to the context the image is in, so we want to prioritize the alt text entered at the point where an image is used (or respect the decision that the image needs no alt text), but where neither of those things are true, use the default alt text for that image.
 
-Copy and paste these imports at the top of `blog/blocks.py`:
+
+## Creating a custom image block
+
+For Wagtail StreamFields, the best approach for adding alt text in context is to create a custom image block that incorporates an image chooser, an optional alt text field, and a checkbox to mark an image as decorative (not needing alt text).
+
+When initially setting up our StreamField, we added an image option to it using Wagtail's built-in `ImageChooserBlock`, which simply creates a button you can use to select an image from your library. We'll replace that with a custom StructBlock, like our `HeadingBlock`, that combines the `ImageChooserBlock` with our two new fields.
+
+In your `blocks.py` file, first add `Boolean` to the list of things being imported from `wagtail.blocks`:
 
 ```python
-from django.core.exceptions import ValidationError
-
 from wagtail.blocks import (
-    CharBlock,
-    ChoiceBlock,
-    RichTextBlock,
-    StreamBlock,
-    StreamBlockValidationError,
-    StructBlock,
+    BooleanBlock,
+    # ...
 )
-from wagtail.embeds.blocks import EmbedBlock
-from wagtail.images.blocks import ImageChooserBlock
 ```
 
-Then cut the entire `HeadingBlock` class from `models.py` and paste it into `blocks.py`.
-
-Now we'll set up our StreamBlock. It will have all the same features of the current blog page's `body` StreamField. Copy and paste this class into your `blocks.py` file, below the `HeadingBlock`:
+Then create a new `ImageBlock` class, subclassing `StructBlock`, with three child blocks for the image chooser, alt text, and decorative flag:
 
 ```python
-class BaseStreamBlock(StreamBlock):
-    heading = HeadingBlock()
-    paragraph = RichTextBlock()
+class ImageBlock(StructBlock):
     image = ImageChooserBlock()
-    embed = EmbedBlock(max_width=800, max_height=400)
-```
-
-Now, back in `models.py`, update the `body` StreamField in the `BlogPage` class to use it. Remove the list of four blocks and insert a call to the new `BaseStreamBlock`, like so:
-
-```python
-class BlogPage(Page):
-    date = models.DateField("Post date")
-    intro = models.CharField(max_length=250)
-    body = StreamField(BaseStreamBlock())
-```
-
-You will also need to add an import of BaseStreamBlock to the top of `models.py`:
-
-```python
-from blog.blocks import BaseStreamBlock
-```
-
-Save everything and reload your editor. The experience should be exactly the same as it was before. You can also confirm that Django thinks nothing has changed by doing a dry run of `makemigrations`:
-
-```shell
-python manage.py makemigrations --dry-run
-```
-
-
-## Override `clean()` to add custom validation logic
-
-With that rearranging done, we can now add our custom validation to check heading hierarchy on save. In a pattern that may be familiar to you if you're experienced in Django, you can override the `StreamBlock` parent class's `clean()` method that is called when saving to try to validate the StreamBlock (actually, the entire StreamField in this case). Back in `blocks.py`, we'll be updating our `BaseStreamBlock` to add the custom `clean()` method:
-
-```python
-class BaseStreamBlock(StreamBlock):
-    heading = HeadingBlock()
-    paragraph = RichTextBlock()
-    image = ImageChooserBlock()
-    embed = EmbedBlock(max_width=800, max_height=400)
+    alt_text = CharBlock(
+        required=False,
+        help_text="Use to override the image's default alt text.",
+    )
+    decorative = BooleanBlock(
+        required=False,
+        help_text="If this image does not contain meaningful content or is described in nearby text, check this box to not output its alt text.",
+    )
     
+    class Meta:
+        icon = 'image'
+        template = 'blocks/image_block.html'
+```
+
+Note that `alt_text` and `decorative` must be set to `required=False` for our block to work as planned.
+
+Finally, switch the `image` of the `BaseStreamBlock` to use our new `ImageBlock` instead of the standard `ImageChooserBlock`:
+
+```python
+class BaseStreamBlock(StreamBlock):
+    heading = HeadingBlock()
+    paragraph = RichTextBlock()
+    image = ImageBlock()  # updated from ImageChooserBlock
+    # ...
+```
+
+With that set, you can see our new block now available in our blog page's StreamField:
+
+
+INSERT SCREENSHOT
+
+
+Now we need to create the block template for it to show up in the frontend. Create a new file named `image_block` in `myblog/templates/blocks` and copy this content into it:
+
+```django
+{% load wagtailimages_tags %}
+
+{% if value.decorative %}
+    {% image value.image original alt="" %}
+{% elif value.alt_text %}
+    {% image value.image original alt=value.alt_text %}
+{% else %}
+    {% image value.image original alt=value.image.default_alt_text %}
+{% endif %}
+```
+
+The logic here is that if an image is marked as decorative, we'll set the alt text to empty so screen readers will ignore it; then if that's not the case, set the alt text to the alt text specified in the block, if there is any; otherwise, fall back on the image's default alt text stored on the image in the image library.
+
+Create one of these blocks in your blog post, upload an image from your computer, and play around with the different configurations, checking the result on the frontend.
+
+
+## Adding custom validation to assist editors
+
+You may have noticed that there is no indication in the editing interface that the decorative checkbox will take precedence over the block-level alt text field. We could add even more help text to indicate that, but users would still be able to both populate the block's alt text field and check the decorative checkbox. To make things extra clear for our users, we can again utilize custom validation.
+
+### Validating either alt text or decorative, not both
+
+We'll do this using a very similar pattern to the way we created the custom heading level validation in the previous step. First, in `blocks.py`, add `StructBlockValidationError` to the list of imports from `wagtail.blocks`:
+
+```python
+from wagtail.blocks import (
+    # ...
+    StructBlockValidationError
+)
+```
+
+Then we'll set up the custom `clean()` method in our `ImageBlock` class:
+
+```python
+class ImageBlock(StructBlock):
+    # ...
     def clean(self, value):
         result = super().clean(value)
 
-        headings = [
-            # tuples of block index and heading level
-            (0, 1)  # mock H1 block at index 0
-        ]
-        errors = {}
-
-        # first iterate through all blocks in the StreamBlock
-        for i in range(0, len(result)):
-            # if a block is of type "heading?
-            if result[i].block_type == "heading":
-                # convert size string to integer
-                level = int(result[i].value.get("size")[-1:])
-                # append tuple of block index and heading level to list
-                headings.append((i, level))
-
-        # now iterate through list of headings,
-        # starting with second heading to skip over the mock H1 heading block
-        for i in range(1, len(headings)):
-            # compare its level to the previous heading's level
-            if int(headings[i][1]) - int(headings[i - 1][1]) > 1:
-                # if the difference is more than 1,
-                # add an error to the array with its original index
-                errors[headings[i][0]] = ValidationError(
-                    "Incorrect heading hierarchy. Avoid skipping levels."
-                )
-
-        if errors:
-            raise StreamBlockValidationError(block_errors=errors)
+        if result["alt_text"] and result["decorative"]:
+            raise StructBlockValidationError(
+                block_errors={
+                    "alt_text": ValidationError(
+                        "Marking an image as decorative will override alt text entered here. Empty this field or uncheck the decorative box."
+                    )
+                }
+            )
 
         return result
 ```
 
-This `clean()` method loops through all of the child blocks in the StreamBlock we're saving, and if they're a heading block, stores their size in a list of headings (which I prepopulated with a placeholder for the H1 that isn't part of the StreamField). Then we can loop through that list of headings – starting at the _second_ heading in the list – and compare its size to the previous heading's size. If the difference is greater than 1, we have identified an error in the heading hierarchy, so we add that to an errors dictionary, and then raise a `StreamBlockValidationError` at the end if that dictionary isn't empty.
+Now if you try to save the block with both alt text and the decorative flag set, you'll receive an error and be prompted to only set one or the other.
 
-Return to the editor after putting that in place, and you'll see that if you try to save the "Hello, world!" blog page again, with its existing hierarchy issue, it will throw a validation error and prevent the save. Pretty cool! Swap the heading to an H2, and you'll see it save successfully. If you then I can add a new heading block at the bottom and set it to H4, skipping H3, you'll see that that will again throw a validation error.
+If you find this heavy-handed, that's OK! Adding help text may be perfectly adequate, depending on the editors you'll be working with.
 
-You may have noticed that the accessibility checker was also flagging a heading hierarchy issue on the heading within the rich text block at the bottom of the page. Since our rich text block is set up with the default features, editors can also create headings in rich text, in addition to the heading block. We'll need to add a little additional code to handle headings in rich text, as they are represented differently there. Add this condition below the original check to see if the block type was `heading`:
+### Preventing bad alt text
+
+Another potential use of custom validation for alt text is preventing the entry of bad alt text. For example, alt text beginning with phrases like "picture of" or "image of" should be avoided, because screen readers already indicate to their users that what they are about to read is the alt text of an image. We can add to our custom `clean()` method to address this:
 
 ```python
-            elif result[i].block_type == "paragraph":
-                # look for headings within the RichTextBlock and add those to the list
-                for match in re.findall(r"\<h[2-6]", result[i].render()):
-                    level = int(match[-1:])
-                    headings.append((i, level))
+    def clean(self, value):
+        # ...
+        phrases = [
+            "graphic of",
+            "image of",
+            "pic of",
+            "picture of",
+            "photo of",
+            "photograph of",
+        ]
+        for phrase in phrases:
+            if result["alt_text"].casefold().startswith(phrase):
+                raise StructBlockValidationError(
+                    block_errors={
+                        "alt_text": ValidationError(
+                            f"Do not start alt text with redundant phrases like {phrase}."
+                        )
+                    }
+                )
+            break
+
+        return result
 ```
 
-Save the file, and if you try to save the page in the editor again, you'll now see an error being reported on the rich text block containing the H4. If a rich text block contains multiple headings, it won't be able to pinpoint an error on a specific heading, but cluing the editor into checking the whole block is still valuable.
+There are more potential ways one could think about to validate whether entered alt text is good or not, but that is probably the biggest one.
 
 
-## Further exploration
+## Using `StructValue` to simplify template logic
 
-A couple of notes that we won't address in this tutorial, but would be good for you to know for the future:
+Looking back at our block template, that's some pretty gnarly logic to put in a template. Let's move some of that into Python using Wagtail's `StructValue` concept.
 
-- Wagtail also has `RichTextField`, a standard Django model field that can be used to provide a rich text editor outside of a StreamField. In that situation, you could subclass `RichTextField` and add your own custom `clean()` method.
-- If you have a page that supports a combination of StreamField and `RichTextField`, or maybe even has other kinds of fields that result in headings on the rendered page, you can override the `clean()` method of the page model itself, looping through it all to build a complete list of headings on the page and then checking each of those in succession.
+`StructValue` is a means of adding custom data to a StructBlock, in addition to the standard values of its child blocks.
+
+We'll continue working in `blocks.py`. First, add the `StructValue` base class to your list of `wagtail.blocks` imports:
+
+```python
+from wagtail.blocks import (
+    # ...
+    StructValue,
+)
+```
+
+Now create a subclass of `StructValue` that we'll use to compute what we want the alt text to be depending on which field in the block is set, if any:
+
+```python
+class ImageStructValue(StructValue):
+    def alt(self):
+        if self.get("decorative"):
+            return ""
+        else:
+            return self.get("alt_text") or self["image"].default_alt_text
+```
+
+Then we must attach the `ImageStructValue` to the `ImageBlock` by adding a new `value_class` attribute to its `class Meta`:
+
+```python
+class ImageBlock(StructBlock):
+    # ...
+    class Meta:
+        icon = "image"
+        template = "blocks/image_block.html"
+        value_class = ImageStructValue
+```
+
+Finally, we can dramatically simplify our `image_block.html` template to call the new `alt` value from the `ImageStructValue`:
+
+```django
+{% load wagtailimages_tags %}
+
+{% image value.image original alt=value.alt %}
+```
+
+Much cleaner! Conventional wisdom in the Django community encourages moving as much logic as possible out of your templates and into Python, but both approaches work, and it's ultimately up to you to decide what you prefer.
+
+
+## The future of alt text in Wagtail
+
+What we went through above is the current best practice for handling image alt text in Wagtail, but there is an active effort underway to further improve Wagtail's default alt handling. We have just launched a Google Summer of Code project to implement [RFC 51](https://github.com/wagtail/rfcs/pull/51), focused on prodiving a default alt text field on the image model, an easy way to hook that up to an AI tool for automatically populating it using a large vision model, and an easier way to add alt text in context, without creating your own custom image block on every site. Stay tuned!
 
 
 ---
 
-Now that we have tried out the Wagtail accessibility checker and fixed some issues that it's reported, let's dig deeper on some of the most common accessibility issues that we see out there.
-
-[Continue to Step 6](https://github.com/vossisboss/pyconwagtail2024/tree/step-6)
+[Continue to Step 8](https://github.com/vossisboss/pyconwagtail2024/tree/step-8)
