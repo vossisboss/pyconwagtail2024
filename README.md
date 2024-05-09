@@ -36,13 +36,11 @@ This command tells the Python package manager pip to install the latest release 
 pip show wagtail
 ```
 
-After Wagtail is installed, you can use one of Wagtail's built-in commands to start a brand new website. For this tutorial, we're going to be creating a mini-blog project called `myblog`.
+After Wagtail is installed, you can use one of Wagtail's built-in commands to start a brand new website. For this tutorial, we're going to be creating a mini-blog project called `myblog`. We're also going to use a `--template` flag to import a template so that we will have a few things set up ahead of time. That way we won't spend this whole workshop copying and pasting template code.
 
 ```
-wagtail start myblog .
+wagtail start myblog --template=https://github.com/vossisboss/pycon2024-starter-template/archive/main.zip
 ```
-
-Don't forget the `.` at the end of the command. It is telling Wagtail to put all of the files in the current working directory.
 
 Once all of the files are set up, you'll need to enter some commands to set up the test database and all of the migration files that Wagtail needs. You can do that with the `migrate` command.
 
