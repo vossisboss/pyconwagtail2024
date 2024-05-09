@@ -1,3 +1,4 @@
+
 {% load static wagtailcore_tags wagtailuserbar %}
 
 <!DOCTYPE html>
@@ -23,6 +24,12 @@
         <base target="_blank">
         {% endif %}
 
+        {# Remove HTML comment to add supported color schemes: #}
+        <!-- <meta name="color-scheme" content="light dark"> -->
+
+        {# Add a favicon with inline SVG: #}
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐦</text></svg>"/>
+
         {# Global stylesheets #}
         <link rel="stylesheet" type="text/css" href="{% static 'css/myblog.css' %}">
 
@@ -34,7 +41,10 @@
     <body class="{% block body_class %}{% endblock %}">
         {% wagtailuserbar %}
 
-        {% block content %}{% endblock %}
+        {# Wrap your block content  within a <main> HTML5 tag: #}
+            <main>
+                {% block content %}{% endblock %}
+            </main>
 
         {# Global javascript #}
         <script type="text/javascript" src="{% static 'js/myblog.js' %}"></script>
