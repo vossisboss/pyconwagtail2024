@@ -88,9 +88,12 @@ search_fields = Page.search_fields + [
     ]
 ```
 
-This code is telling Wagtail which fields you would like to be searchable. For the most part, you want users to be able to search as many fields as possible to help them find what they need. But there are some occassions where you don't want content to be indexed in the website search.
+This code is telling Wagtail which fields you would like to be searchable. For the most part, you want users to be able to search as many fields as possible to help them find what they need. But there are some occasions where you don't want content to be indexed in the website search.
 
-## 
+## Templates for your blog
+
+You're probably noticing a trend how things are set up in Wagtail. You create models to organize your data then pair them with a set of templates that determined how that data is displayed in HTML on your webpage. We pre-loaded two basic templates for `BlogIndexPage` and `BlogPage`. You can have a look at those in the `myblog/templates/blog` folder. Remember where they are because we will be coming back to them to modify the templates and make them better for accesssibility.
+
 
 ## Adding Wagtail StreamField
 
@@ -208,9 +211,11 @@ Save your file and then run the migration commands `python manage.py makemigrati
 
 ## Load some demo pages
 
-Rather than creating your own blog index and blog pages, it might be easier to run a script to load these into your database. Running our script will also help by ensuring that you have an example accessibility issue that we'll look at later.
+Rather than creating your own blog index and blog pages, we provided a script to load some practice content into your database. Running our script will also give you an example accessibility issue that we'll look at later in this workshop.
 
-Copy the contents of [`/blog/mangement/commands/seed_data.py`](https://github.com/vossisboss/pyconwagtail2024/blob/step-4/blog/management/commands/seed_data.py) from this branch and paste it in the same location in your project. Then run `python manage.py seed_data` to load up our demo Blog Index Page and a child Blog Page. After it completes, refresh the Wagtail admin to see the new pages there.
+To run the script copy, run `python manage.py seed_data` in your terminal to load up our demo Blog Index Page and a child Blog Page. After it completes, refresh the Wagtail admin to see the new pages.
+
+Once you have the pages loaded, we're done with the basic Wagtail set up and now we're move on to making our simple blog more accessible than it currently is.
 
 ---
 
@@ -218,7 +223,7 @@ TODO:
 
 - [x] Add section where we load initial content via fixture to ensure people see the accessibility issues we want to demonstrate.
   - [x] Add note to earlier sections to make sure people don't change any of the names in the same code, or the fixture won't work.
-- [ ] Incorporate CSS and (some?) HTML into new project template that gets brought in with `wagtail start` in step 1
+- [x]  Incorporate CSS and (some?) HTML into new project template that gets brought in with `wagtail start` in step 1
   - [ ] Make a couple intentional accessibility errors along the lines of what Scott fixes in the Bakery Demo during his DjangoCon talk (but don't call attention to them in this README)
 - [ ] Add "Adding templates for your blog pages" section from previous tutorial's Step 4 for any HTML bits we didn't include in the project template
 - [ ] End this step by viewing the frontend with our imported content
