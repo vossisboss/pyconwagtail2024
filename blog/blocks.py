@@ -1,6 +1,7 @@
 import re
 
 from django.core.exceptions import ValidationError
+from django.utils.safestring import mark_safe
 
 from wagtail.blocks import (
     BooleanBlock,
@@ -24,6 +25,14 @@ class HeadingBlock(StructBlock):
             ("h3", "H3"),
             ("h4", "H4"),
         ],
+        help_text=mark_safe(
+            "Please ensure that you do not skip heading levels. "
+            "For example, the next heading after an H2 "
+            "should only be either an H3 or another H2. "
+            '<a href="https://www.a11yproject.com/posts/'
+            'how-to-accessible-heading-structure/" target="_blank">'
+            "Learn more about heading structure</a>"
+        ),
     )
     text = CharBlock()
 
