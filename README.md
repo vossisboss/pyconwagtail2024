@@ -12,30 +12,29 @@ Right out of the box, Wagtail comes with a `home` app that provides a blank `Hom
 
 First, you'll need to add some additional import statements to the top of the page. This statement will import the `RichTextField` (one that lets you use bold, italics, and other formatting) from Wagtail:
 
-```
+```python
 from wagtail.fields import RichTextField
- ```
+```
 
 And this statement will import the panel you need to make sure your new field appears in the Wagtail admin as well:
 
-```
+```python
 from wagtail.admin.panels import FieldPanel
 ```
 
 Once those import statements are added, delete `pass` from your `HomePage` model and replace it with:
 
-```
-summary = RichTextField(blank=True)
+```python
+    summary = RichTextField(blank=True)
 
     content_panels = Page.content_panels + [
         FieldPanel('summary'),
     ]
-
 ```
 
 Your whole file should look like this right now:
 
-```
+```python
 from django.db import models
 
 from wagtail.models import Page
@@ -53,8 +52,8 @@ class HomePage(Page):
 
 Awesome! So what else do we need to have an attractive home page for the blog? An image is something most readers find appealing, so let's add an image to the `HomePage` model as well. Add the following code beneath your `summary` variable:
 
-```
-main_image = models.ForeignKey(
+```python
+    main_image = models.ForeignKey(
         images.get_image_model_string(),
         null=True,
         blank=True,
@@ -64,13 +63,14 @@ main_image = models.ForeignKey(
 ```
 
 And then add another line to `content_panels`:
-```
-FieldPanel('main_image'),
+
+```python
+        FieldPanel('main_image'),
 ```
 
 Your full `models.py` file should like like this now:
 
-```
+```python
 from django.db import models
 
 from wagtail.models import Page
@@ -93,23 +93,23 @@ class HomePage(Page):
         FieldPanel('summary'),
         FieldPanel('main_image'),
     ]
-
 ```
 
 Now you have fields for a summary and for adding an image to your home page. To add those fields to the database, run the following migration commands:
 
-```
+```shell
 python manage.py makemigrations
 python manage.py migrate
 ```
 
 ## Check your fields with the development server 
 
-Let's get the development server up and running in your terminal with:
+If it's not still going, let's get the development server up and running in your terminal with:
 
-```
+```shell
 python manage.py runserver
 ```
+
 Navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser to check that your homepage is still functional. Then navigate to [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) to access the admin log in page. Log in with the superuser you created in Step One.
 
 Now you're in the Wagtail dashboard. You'll see lots of handy stuff like a list of the number of pages, your latest revisions, and other useful things. On the left hand side is the main toolbar for Wagtail. Select "Pages" from this toolbar and then click the "Home" link.
@@ -132,7 +132,7 @@ Oh no! There's no badger! Did we do something wrong? Nope. We have to remove the
 
 Go to `home/templates/home/home_page.html` and delete everything in the file except for the first line `{% extends "base.html" %}`. Update the file so it looks like this:
 
-```
+```django
 {% extends "base.html" %}
 {% load wagtailcore_tags wagtailimages_tags %}
 
@@ -148,15 +148,17 @@ Go to `home/templates/home/home_page.html` and delete everything in the file exc
 
 {% endblock %}
 ```
+
 Save the file and then reload your homepage. You should now see the title of your blog, the summary, and a beautiful badger (if you chose to go with my badger theme rather than your own).
 
 Now, the summary might look a little funky. And that is because text fields do not print with escaped characters by default. Fortunately, Wagtail comes with a handy filter, among many other [handy filters](https://docs.wagtail.org/en/stable/topics/writing_templates.html#template-tags-and-filters), that can render the text properly. Update the `{{page.summary}}` line so that it is:
 
-```
+```django
 <p>{{page.summary|richtext}}</p>
 ```
+
 Refresh the page and the summary text should be displaying properly now.
 
-Before you move on from this task, let's clean your templates and organize things a bit. Navigate to `myblog\templates` and create a new directory in it called `home`. Move `home_page.html` to the new `home` directory. Refresh the page to make sure it still works. The delete the `templates` directory in the `home` app. While you're there, you can also delete the `static` folder in the the `home` app because all that is in it is some CSS for the default home page.
+Before you move on from this task, let's clean your templates and organize things a bit. Navigate to `myblog/templates` and create a new directory in it called `home`. Move `home_page.html` to the new `home` directory. Refresh the page to make sure it still works. The delete the `templates` directory in the `home` app. While you're there, you can also delete the `static` folder in the the `home` app because all that is in it is some CSS for the default home page.
 
 This structure will help you stay organized by keeping all of your templates in one directory. Trust me, any frontend developers you work with will thank you. And then they will find something else to pick on, but that's the way of things.
