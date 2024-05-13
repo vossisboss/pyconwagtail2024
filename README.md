@@ -8,7 +8,7 @@ Many of the steps you'll be doing here have been borrowed from the [Getting Star
 
 Right out of the box, Wagtail comes with a `home` app that provides a blank `HomePage` model. This model will define the home page of your website and what content appears on it. Go to the `home` directory in your project and open up `models.py`. You'll see that all the model currently has in it by default is a `pass` command. So you're going to have to extend it to add content to your home page.
 
- Since this is going to be a blog site, you should probably tell your readers what the blog is about and give them a reason to read it. All pages in Wagtail have a title by default, so you'll be able to add the blog title easily. So let's extend the `HomePage` model by adding a text field for a blog summary to the model.
+Since this is going to be a blog site, you should probably tell your readers what the blog is about and give them a reason to read it. All pages in Wagtail have a title by default, so you'll be able to add the blog title easily. So let's extend the `HomePage` model by adding a text field for a blog summary to the model.
 
 First, you'll need to add some additional import statements to the top of the page. This statement will import the `RichTextField` (one that lets you use bold, italics, and other formatting) from Wagtail:
 
@@ -60,6 +60,12 @@ Awesome! So what else do we need to have an attractive home page for the blog? A
         on_delete=models.SET_NULL,
         related_name="+",
     )
+```
+
+Then we need one more imput for the images module:
+
+```python
+from wagtail import images
 ```
 
 And then add another line to `content_panels`:
@@ -142,7 +148,7 @@ Go to `home/templates/home/home_page.html` and delete everything in the file exc
 
 <h1>{{ page.title }}</h1>
 
-<p>{{page.summary}}</p>
+<div>{{ page.summary }}</div>
 
 {% image page.main_image max-500x500 %}
 
@@ -151,10 +157,10 @@ Go to `home/templates/home/home_page.html` and delete everything in the file exc
 
 Save the file and then reload your homepage. You should now see the title of your blog, the summary, and a beautiful badger (if you chose to go with my badger theme rather than your own).
 
-Now, the summary might look a little funky. And that is because text fields do not print with escaped characters by default. Fortunately, Wagtail comes with a handy filter, among many other [handy filters](https://docs.wagtail.org/en/stable/topics/writing_templates.html#template-tags-and-filters), that can render the text properly. Update the `{{page.summary}}` line so that it is:
+Now, the summary might look a little funky. And that is because text fields do not print with escaped characters by default. Fortunately, Wagtail comes with a handy filter, among many other [handy filters](https://docs.wagtail.org/en/stable/topics/writing_templates.html#template-tags-and-filters), that can render the text properly. Update the `{{ page.summary }}` line so that it is:
 
 ```django
-<p>{{page.summary|richtext}}</p>
+<div>{{ page.summary|richtext }}</div>
 ```
 
 Refresh the page and the summary text should be displaying properly now.
