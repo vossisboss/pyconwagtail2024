@@ -8,13 +8,13 @@ The key question to ask yourself when considering alt text for an image is, "Wha
 
 You can find many many articles on when and how to use alt text, but let's discuss how to implement it in Wagtail. Note: The stock implementation of alt text in Wagtail is under active development, so we'll try to give the best advice we can as of the date of this tutorial.
 
-Wagtail has never had a field for alt text in its default image model, but it will default to using an image's title for the alt text if you render an image with Wagtail's standard `{% image %}` template tag. This isn't great, because the title you want to see in the admin interface may have no relation to useful alt text.
+Wagtail has never had a field for alt text in its default image model, but as we noted earlier, it will default to using an image's title for the alt text if you render an image with Wagtail's standard `{% image %}` template tag. This isn't great, because the title you want to see in the admin interface may have no relation to useful alt text.
 
 Our current recommendation is three-fold:
 
-1. Add an default alt text field to a custom image model, which we already did in step 3 and use that instead of the image's title field
+1. Add an default alt text field to a custom image model, which we already did in step 3, and use that instead of the image's title field
 2. Add alt text fields and "is decorative" checkboxes alongside image choosers in the context of your page content
-3. Write your templates to use the in-context alt attribute, if present, or fall back on the default alt text from the model
+3. Write your templates to use the in-context alt field, if present, or fall back on the default alt text from the model
 
 Any given image may be used in multiple places on a site, and it's important that alt text be relevant to the context the image is in, so we want to prioritize the alt text entered at the point where an image is used (or respect the decision that the image needs no alt text), but where neither of those things are true, use the default alt text for that image.
 
@@ -67,25 +67,27 @@ class BaseStreamBlock(StreamBlock):
 
 With that set, you can see our new block now available in our blog page's StreamField:
 
+![The editing interface for our new image block](tutorial-screenshots/imageblock-editor.png)
 
-INSERT SCREENSHOT
-
-
-Now we need to create the block template for it to show up in the frontend. Create a new file named `image_block` in `myblog/templates/blocks` and copy this content into it:
+Now we need to create the block template for it to show up in the front end. Create a new file named `image_block.html` in `myblog/templates/blocks` and copy this content into it:
 
 ```django
 {% load wagtailimages_tags %}
 
 {% if value.decorative %}
-    {% image value.image original alt="" %}
+    {% image value.image max-800x600 alt="" %}
 {% elif value.alt_text %}
-    {% image value.image original alt=value.alt_text %}
+    {% image value.image max-800x600 alt=value.alt_text %}
 {% else %}
-    {% image value.image original alt=value.image.default_alt_text %}
+    {% image value.image max-800x600 alt=value.image.default_alt_text %}
 {% endif %}
 ```
 
-The logic here is that if an image is marked as decorative, we'll set the alt text to empty so screen readers will ignore it; then if that's not the case, set the alt text to the alt text specified in the block, if there is any; otherwise, fall back on the image's default alt text stored on the image in the image library.
+The logic here is:
+
+1. If an image is marked as decorative, we'll set the alt text to empty so screen readers will ignore it.
+2. If if that's not the case, set the alt text to the alt text specified in the block, if there is any.
+3. Otherwise, fall back on the image's default alt text stored on the image in the image library.
 
 Create one of these blocks in your blog post, upload an image from your computer, and play around with the different configurations, checking the result on the frontend.
 
@@ -101,7 +103,7 @@ We'll do this using a very similar pattern to the way we created the custom head
 ```python
 from wagtail.blocks import (
     # ...
-    StructBlockValidationError
+    StructBlockValidationError,
 )
 ```
 
@@ -135,25 +137,33 @@ Another potential use of custom validation for alt text is preventing the entry 
 
 ```python
     def clean(self, value):
-        # ...
-        phrases = [
+        result = super().clean(value)
+
+        if result["alt_text"] and result["decorative"]:
+            raise StructBlockValidationError(
+                block_errors={
+                    "alt_text": ValidationError(
+                        "Marking an image as decorative will override alt text entered here. Empty this field or uncheck the decorative box."
+                    )
+                }
+            )
+
+        phrases = (
             "graphic of",
             "image of",
             "pic of",
             "picture of",
             "photo of",
             "photograph of",
-        ]
-        for phrase in phrases:
-            if result["alt_text"].casefold().startswith(phrase):
-                raise StructBlockValidationError(
-                    block_errors={
-                        "alt_text": ValidationError(
-                            f"Do not start alt text with redundant phrases like {phrase}."
-                        )
-                    }
-                )
-            break
+        )
+        if result["alt_text"].casefold().startswith(phrases):
+            raise StructBlockValidationError(
+                block_errors={
+                    "alt_text": ValidationError(
+                        'Do not start alt text with redundant phrases like "Image of…".'
+                    )
+                }
+            )
 
         return result
 ```
@@ -176,7 +186,7 @@ from wagtail.blocks import (
 )
 ```
 
-Now create a subclass of `StructValue` that we'll use to compute what we want the alt text to be depending on which field in the block is set, if any:
+Now create a subclass of `StructValue` that we'll use to compute what we want the alt text to be depending on which field in the block is set, if any. Place this above your `ImageBlock` class:
 
 ```python
 class ImageStructValue(StructValue):
@@ -203,7 +213,7 @@ Finally, we can dramatically simplify our `image_block.html` template to call th
 ```django
 {% load wagtailimages_tags %}
 
-{% image value.image original alt=value.alt %}
+{% image value.image max-800x600 alt=value.alt %}
 ```
 
 Much cleaner! Conventional wisdom in the Django community encourages moving as much logic as possible out of your templates and into Python, but both approaches work, and it's ultimately up to you to decide what you prefer.
@@ -211,7 +221,7 @@ Much cleaner! Conventional wisdom in the Django community encourages moving as m
 
 ## The future of alt text in Wagtail
 
-What we went through above is the current best practice for handling image alt text in Wagtail, but there is an active effort underway to further improve Wagtail's default alt handling. We have just launched a Google Summer of Code project to implement [RFC 51](https://github.com/wagtail/rfcs/pull/51), focused on prodiving a default alt text field on the image model, an easy way to hook that up to an AI tool for automatically populating it using a large vision model, and an easier way to add alt text in context, without creating your own custom image block on every site. Stay tuned!
+What we went through above is the current best practice for handling image alt text in Wagtail, but there is an active effort underway to further improve Wagtail's default alt handling. We have just launched a Google Summer of Code project to implement [RFC 51](https://github.com/wagtail/rfcs/pull/51), focused on providing a default alt text field on the image model, an easy way to hook that up to an AI tool for automatically populating it using a large vision model, and an easier way to add alt text in context, without creating your own custom image block on every site. Stay tuned!
 
 
 ---
