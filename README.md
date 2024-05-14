@@ -21,7 +21,7 @@ class CustomImage(AbstractImage):
 
     # To add a caption field:
     # caption = models.CharField(max_length=255, blank=True)
-    default_alt_text = models.CharField(max_length=255, blank=True)
+    default_alt_text = models.CharField(max_length=255, blank=False)
 
     admin_form_fields = Image.admin_form_fields + (
         # Then add the field names here to make them appear in the form:
@@ -42,7 +42,7 @@ The default Wagtail image model DOES NOT include designated fields for alt text 
 
 As we will get into in more detail later, this is NOT ideal. Alt text is very important for people who navigate websites with screenreaders, but context matters a lot. Sometimes, the title for an image works perfectly well. But if the image is decorative (like a logo), then it can be really annoying for a screenreader user to navigate through a bunch of titles that don't provide good information for them. The current default does provide the most flexibility for developers to customize projects according to their specific needs and accessibility standards, though.
 
-Still, it is a very good idea to have a standard `default_alt_text` field, which is why one has been added to our `CustomImage` model. We also added `blank=True` to make it a mandatory field so that people won't forget to add it.
+Still, it is a very good idea to have a standard `default_alt_text` field, which is why one has been added to our `CustomImage` model. We also added `blank=False` to make it a mandatory field so that people won't forget to add it.
 
 We'll include some instructions on how to add the custom model at the end, just in case you ever have to set this up from scratch. Next, we're going to start building out a blog.
 

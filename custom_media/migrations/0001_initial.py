@@ -70,7 +70,7 @@ class Migration(migrations.Migration):
                         blank=True, db_index=True, editable=False, max_length=40
                     ),
                 ),
-                ("default_alt_text", models.CharField(blank=True, max_length=255)),
+                ("default_alt_text", models.CharField(max_length=255)),
                 (
                     "collection",
                     models.ForeignKey(
