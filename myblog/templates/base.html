@@ -41,13 +41,13 @@
     <body class="{% block body_class %}{% endblock %}">
         {% wagtailuserbar %}
 
-        <div class="header">
+        <header class="header">
             My Wagtail Blog
-        </div>
+        </header>
 
-        <div>
+        <main id="main">
             {% block content %}{% endblock %}
-        </div>
+        </main>
 
         <footer>
             <h2>{{ current_site.site_name }}</h2>
