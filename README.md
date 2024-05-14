@@ -1,157 +1,31 @@
-# Step Eight: Helping Editors Help Themselves
+# Next Steps
 
-To close out the coding portion of our tutorial, we'll take a look at how we can provide more timely guidance to editors while they are creating their content.
+Now you have a working foundation for a more accessible website? What should you do next? Here are a few things you can do with your starter project.
 
+### Customize other key models.
 
-## `help_text`
+As we said earlier in the tutorial, custom models are pretty important to take care of early in a project. This project already comes with a custom image model but you'll want to customize the user and document models as well just in case you need to use them later on in your project. Here are links to the documentation on how to customize each model, including a link on how to customize the image and renditon models from scratch:
 
-You probably noticed the `help_text` attribute that we included in our custom image block in the previous step. If you have experience in Django, this is probably a familiar concept for you, but help text is a way for developers to provide hints about a field to a user as they are editing it.
+- [User](https://docs.wagtail.org/en/stable/advanced_topics/customisation/custom_user_models.html#custom-user-models)
+- [AbstractImage and AbstractRendition](https://docs.wagtail.org/en/stable/advanced_topics/images/custom_image_model.html#custom-image-model)
+- [AbstractDocument](https://docs.wagtail.org/en/stable/advanced_topics/documents/custom_document_model.html#id1)
 
-### Help text for alt text
+### Add your favorite frontend
 
-Here again is the meat of our `ImageBlock` class:
+Wagtail was created to provide a backend framework that works well with as many frontend technologies as possible. Whether you prefer something simple like [Bootstrap](https://getbootstrap.com/) or something more complex like [React](https://reactjs.org/) or [Next.js](https://nextjs.org/), you can try pretty much everything with Wagtail. If you need some inspiration, see the [Awesome Wagtail repository](https://github.com/springload/awesome-wagtail) for some good starter templates and other resources.
 
-```python
-class ImageBlock(StructBlock):
-    image = ImageChooserBlock()
-    alt_text = CharBlock(
-        required=False,
-        help_text="Use to override the image's default alt text.",
-    )
-    decorative = BooleanBlock(
-        required=False,
-        help_text="If this image does not contain meaningful content or is described in nearby text, check this box to not output its alt text.",
-    )
-    # ...
-```
+### Install some packages
 
-Let's improve the help text on the `alt_text` field by adding additional context and a link to further guidance. We can include HTML in our help text by using Django's `mark_safe` utility. Add this import to the top of `blocks.py`:
+Content people have high expectations, and the default options in Wagtail don't typically satisfy them. So try adding some packages to expand Wagtail and add some key functions like SEO support and other useful features. Have a look at our [Packages directory](https://wagtail.org/packages/) to see which ones might be useful for your project. You can also find great packages at [Django Packages](https://djangopackages.org/) as well. 
 
-```python
-from django.utils.safestring import mark_safe
-```
+### Experiment with adding different elements from the Wagtail Extended Tutorial
 
-Then update the help text to something like this:
+The [Wagtail Extended Tutorial](https://docs.wagtail.org/en/stable/tutorial/index.html) includes an example project that can provide you with some code examples to borrow for your own work. Have a look at it and see if there are any bits you like and want to try out.
 
-```python
-    alt_text = CharBlock(
-        required=False,
-        help_text=mark_safe(
-            "Enter a text alternative to be displayed if images fail to load, "
-            "or to be read by screen reader software. "
-            "(Overrides the image's default alt text.) "
-            '<a href="https://www.a11yproject.com/posts/alt-text/" '
-            'target="_blank">Learn more about writing good alt text</a>'
-        ),
-    )
-```
+### Deploy your project
 
-This explains what the field actually does for users who might be unfamiliar with the term "alt text", and offers them a way to learn more about best practices for alt text.
+There are so many options for deployment, we can't cover them all. But the [Wagtail Extended Tutorial](https://docs.wagtail.org/en/stable/tutorial/index.html) contains deployment instructions and you can also find some [deployment resources in the Wagtail documentation](https://docs.wagtail.org/en/stable/advanced_topics/deploying.html#deployment-guide).
 
-### Help text for heading levels
+### Experiment with StreamField blocks
 
-Looking back at the `HeadingBlock`, let's add some help text to inform users about heading hierarchy considerations when choosing their heading level. Here is the original block again:
-
-```python
-class HeadingBlock(StructBlock):
-    size = ChoiceBlock(
-        choices=[
-            ("h2", "H2"),
-            ("h3", "H3"),
-            ("h4", "H4"),
-        ],
-    )
-    text = CharBlock()
-
-    class Meta:
-        icon = "title"
-        template = "blocks/heading_block.html"
-```
-
-And here is an example of the kind of help text I would add to the `size` field:
-
-```python
-        help_text=mark_safe(
-            'Please ensure that you do not skip heading levels. '
-            'For example, the next heading after an H2 '
-            'should only be either an H3 or another H2. '
-            '<a href="https://www.a11yproject.com/posts/'
-            'how-to-accessible-heading-structure/" target="_blank">'
-            'Learn more about heading structure</a>'
-        ),
-```
-
-
-## `HelpPanel`
-
-Sometimes you might find yourself in a situation where it'd be a better user experience to give guidance at a page level rather than on individual fields.
-
-For example, let's say you have an Image Gallery page type. In this situation, you probably wouldn't want to use our existing `ImageBlock` because each image in that context would never be decorative, so alt text should be required. And, if you're adding large, arbitrary number of images to the page, seeing identical help text on each of those fields would be noisy and redundant.
-
-Wagtail has a `HelpPanel` that is perfect for this kind of situation. Rather than a typical editor panel that provides some sort of form widget for entering content, `HelpPanel` is a way to provide read-only help content to users.
-
-Here's how we might define an image gallery page model and include a `HelpPanel` to provide alt text guidance in a single prominent location:
-
-```python
-from django.db import models
-
-from wagtail.models import Page, Orderable
-from wagtail.fields import RichTextField
-from wagtail.admin.panels import FieldPanel, HelpPanel, InlinePanel
-from wagtail.search import index
-
-from modelcluster.fields import ParentalKey
-
-
-class ImageGalleryPage(Page):
-    intro = RichTextField(blank=True)
-
-    content_panels = Page.content_panels + [
-        FieldPanel("intro"),
-        HelpPanel(
-            content=(
-                "<hr>"
-                "<p>The <b>alt text</b> field is for entering a text alternative "
-                "to be displayed if images fail to load, "
-                "or to be read by screen reader software. "
-                "If one is not entered below, the image's default alt text will be used.</p>"
-                '<a href="https://www.a11yproject.com/posts/alt-text/" '
-                'target="_blank">Learn more about writing good alt text</a>'
-            )
-        ),
-        InlinePanel("gallery_images", label="Images"),
-    ]
-
-
-class ImageGalleryImageImage(Orderable):
-    page = ParentalKey(
-        ImageGalleryPage, on_delete=models.CASCADE, related_name="gallery_images"
-    )
-    image = models.ForeignKey(
-        "custom_media.CustomImage", on_delete=models.CASCADE, related_name="+"
-    )
-    alt_text = models.CharField(blank=True, max_length=250)
-
-    panels = [
-        FieldPanel("image"),
-        FieldPanel("alt_text"),
-    ]
-```
-
-If you want to try it out, copy and paste the above code into your `blog/models.py` file and create a new `ImageGalleryPage` under your home page.
-
-This results in a neat and tidy interface for building an image gallery:
-
-![The Wagtail editing interface for an image gallery page as defined in the code above, featuring a HelpPanel describing the alt text field.](tutorial-screenshots/example-helppanel.png)
-
-We didn't include a template for this page, but you're welcome to try adding one. Here are a couple hints:
-
-1. Put it at `myblog/templates/blog/image_gallery_page.html`, which follows the conventional Wagtail template location pattern so you don't have to specify the template location in the model.
-2. We left off the decorative checkbox because images in a gallery context should always have alt text. Refer back to our original implementation of `image_block.html` to see how you could use a simple `if`/`else` statement to determine which alt text to output.
-
-(As a brief aside, the `ImageGalleryPage` model also showcases a common Wagtail pattern you might want to be aware of – the use of an `InlinePanel` to insert any number of standard Django model fields – or combinations of fields, like this example with both an image and its alt text – without using a StreamField. You can [read more on inline models in the docs](https://docs.wagtail.org/en/stable/topics/pages.html#inline-models).)
-
-
----
-
-That's the end of our coding for this tutorial! Thanks for joining us :)
+There is a whole list of [default blocks](https://docs.wagtail.org/en/stable/reference/streamfield/blocks.html) you can use in Wagtail. You can also combine these blocks in custom arrangements with [StructBlock](https://docs.wagtail.org/en/stable/topics/streamfield.html#structblock). If the default blocks aren't quite what you need, you can even add [custom blocks](https://docs.wagtail.org/en/stable/advanced_topics/customisation/streamfield_blocks.html#custom-streamfield-blocks) to your project. StreamField goes about as far as your imagination goes!
