@@ -72,25 +72,22 @@ class ImageBlock(StructBlock):
                 }
             )
 
-        phrases = [
+        phrases = (
             "graphic of",
             "image of",
             "pic of",
             "picture of",
             "photo of",
             "photograph of",
-        ]
-        for phrase in phrases:
-            print(phrase)  # WHY IS THIS NOT ITERATING?????????????
-            if result["alt_text"].casefold().startswith(phrase):
-                raise StructBlockValidationError(
-                    block_errors={
-                        "alt_text": ValidationError(
-                            f"Do not start alt text with redundant phrases like {phrase}."
-                        )
-                    }
-                )
-            break
+        )
+        if result["alt_text"].casefold().startswith(phrases):
+            raise StructBlockValidationError(
+                block_errors={
+                    "alt_text": ValidationError(
+                        'Do not start alt text with redundant phrases like "Image of…".'
+                    )
+                }
+            )
 
         return result
 
