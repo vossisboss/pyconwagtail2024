@@ -1,4 +1,3 @@
-from dataclasses import Field
 from django.db import models
 
 from wagtail.models import Page
