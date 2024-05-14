@@ -168,3 +168,8 @@ Refresh the page and the summary text should be displaying properly now.
 Before you move on from this task, let's clean your templates and organize things a bit. Navigate to `myblog/templates` and create a new directory in it called `home`. Move `home_page.html` to the new `home` directory. Refresh the page to make sure it still works. The delete the `templates` directory in the `home` app. While you're there, you can also delete the `static` folder in the the `home` app because all that is in it is some CSS for the default home page.
 
 This structure will help you stay organized by keeping all of your templates in one directory. Trust me, any frontend developers you work with will thank you. And then they will find something else to pick on, but that's the way of things.
+
+
+---
+
+[Continue to step 3](https://github.com/vossisboss/pyconwagtail2024/tree/step-3)
