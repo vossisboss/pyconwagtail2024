@@ -33,7 +33,23 @@ from wagtail.embeds.blocks import EmbedBlock
 from wagtail.images.blocks import ImageChooserBlock
 ```
 
-Then cut the entire `HeadingBlock` class from `models.py` and paste it into `blocks.py`.
+Then cut the entire `HeadingBlock` class from `models.py` and paste it into `blocks.py`. Also remove the `blocks.` prefix that is used in three places in `HeadingBlock`, because we are now importing specific classes from the `blocks` module. The result should look like this:
+
+```python
+class HeadingBlock(StructBlock):
+    size = ChoiceBlock(
+        choices=[
+            ("h2", "H2"),
+            ("h3", "H3"),
+            ("h4", "H4"),
+        ],
+    )
+    text = CharBlock()
+
+    class Meta:
+        icon = "title"
+        template = "blocks/heading_block.html"
+```
 
 Now we'll set up our StreamBlock. It will have all the same features of the current blog page's `body` StreamField. Copy and paste this class into your `blocks.py` file, below the `HeadingBlock`:
 
@@ -115,9 +131,17 @@ class BaseStreamBlock(StreamBlock):
 
 This `clean()` method loops through all of the child blocks in the StreamBlock we're saving, and if they're a heading block, stores their size in a list of headings (which I prepopulated with a placeholder for the H1 that isn't part of the StreamField). Then we can loop through that list of headings – starting at the _second_ heading in the list – and compare its size to the previous heading's size. If the difference is greater than 1, we have identified an error in the heading hierarchy, so we add that to an errors dictionary, and then raise a `StreamBlockValidationError` at the end if that dictionary isn't empty.
 
-Return to the editor after putting that in place, and you'll see that if you try to save the "Hello, world!" blog page again, with its existing hierarchy issue, it will throw a validation error and prevent the save. Pretty cool! Swap the heading to an H2, and you'll see it save successfully. If you then I can add a new heading block at the bottom and set it to H4, skipping H3, you'll see that that will again throw a validation error.
+Return to the editor after putting that in place and saving the file, and you'll see that if you try to save the "Hello, world!" blog page again, with its existing hierarchy issue, it will throw a validation error and prevent the save. Pretty cool! Swap the heading to an H2, and you'll see it save successfully. If you then add a new heading block at the bottom and set it to H4, skipping H3, you'll see that that will again throw a validation error.
 
-You may have noticed that the accessibility checker was also flagging a heading hierarchy issue on the heading within the rich text block at the bottom of the page. Since our rich text block is set up with the default features, editors can also create headings in rich text, in addition to the heading block. We'll need to add a little additional code to handle headings in rich text, as they are represented differently there. Add this condition below the original check to see if the block type was `heading`:
+You may have noticed that the accessibility checker was also flagging a heading hierarchy issue on the heading within the rich text block toward the bottom of the page. Since our rich text block is set up with the default features, editors can also create headings in rich text, in addition to the heading block. We'll need to add a little additional code to our custom `clean()` to handle headings in rich text, as they are represented differently there.
+
+First add this new import of Python's standard regular expression library to the top of `blocks.py`:
+
+```python
+import re
+```
+
+Then add this condition below the original check to see if the block type was `heading` in the first loop through all the blocks:
 
 ```python
             elif result[i].block_type == "paragraph":
@@ -127,7 +151,25 @@ You may have noticed that the accessibility checker was also flagging a heading 
                     headings.append((i, level))
 ```
 
-Save the file, and if you try to save the page in the editor again, you'll now see an error being reported on the rich text block containing the H4. If a rich text block contains multiple headings, it won't be able to pinpoint an error on a specific heading, but cluing the editor into checking the whole block is still valuable.
+Your whole first loop should now look like this:
+
+```python
+        # first iterate through all blocks in the StreamBlock
+        for i in range(0, len(result)):
+            # if a block is of type "heading?
+            if result[i].block_type == "heading":
+                # convert size string to integer
+                level = int(result[i].value.get("size")[-1:])
+                # append tuple of block index and heading level to list
+                headings.append((i, level))
+            elif result[i].block_type == "paragraph":
+                # look for headings within the RichTextBlock and add those to the list
+                for match in re.findall(r"\<h[2-6]", result[i].render()):
+                    level = int(match[-1:])
+                    headings.append((i, level))
+```
+
+Save the file, and if you try to save the page in the editor again, you'll now see an error being reported on the rich text block containing the H4. If a rich text block contains multiple headings, it won't be able to pinpoint an error on a specific heading, but clueing the editor into checking the whole block is still valuable.
 
 
 ## Further exploration
