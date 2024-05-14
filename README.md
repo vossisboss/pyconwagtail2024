@@ -7,6 +7,8 @@ To close out the coding portion of our tutorial, we'll take a look at how we can
 
 You probably noticed the `help_text` attribute that we included in our custom image block in the previous step. If you have experience in Django, this is probably a familiar concept for you, but help text is a way for developers to provide hints about a field to a user as they are editing it.
 
+### Help text for alt text
+
 Here again is the meat of our `ImageBlock` class:
 
 ```python
@@ -35,16 +37,18 @@ Then update the help text to something like this:
     alt_text = CharBlock(
         required=False,
         help_text=mark_safe(
-            'Enter a text alternative to be displayed if images fail to load, '
-            'or to be read by screen reader software. '
-            '(Overrides the image\'s default alt text.) '
+            "Enter a text alternative to be displayed if images fail to load, "
+            "or to be read by screen reader software. "
+            "(Overrides the image's default alt text.) "
             '<a href="https://www.a11yproject.com/posts/alt-text/" '
             'target="_blank">Learn more about writing good alt text</a>'
-        )
+        ),
     )
 ```
 
 This explains what the field actually does for users who might be unfamiliar with the term "alt text", and offers them a way to learn more about best practices for alt text.
+
+### Help text for heading levels
 
 Looking back at the `HeadingBlock`, let's add some help text to inform users about heading hierarchy considerations when choosing their heading level. Here is the original block again:
 
@@ -124,7 +128,7 @@ class ImageGalleryImageImage(Orderable):
         ImageGalleryPage, on_delete=models.CASCADE, related_name="gallery_images"
     )
     image = models.ForeignKey(
-        "wagtailimages.Image", on_delete=models.CASCADE, related_name="+"
+        "custom_media.CustomImage", on_delete=models.CASCADE, related_name="+"
     )
     alt_text = models.CharField(blank=True, max_length=250)
 
@@ -134,11 +138,18 @@ class ImageGalleryImageImage(Orderable):
     ]
 ```
 
+If you want to try it out, copy and paste the above code into your `blog/models.py` file and create a new `ImageGalleryPage` under your home page.
+
 This results in a neat and tidy interface for building an image gallery:
 
 ![The Wagtail editing interface for an image gallery page as defined in the code above, featuring a HelpPanel describing the alt text field.](tutorial-screenshots/example-helppanel.png)
 
-(As a brief aside, this example also showcases a common Wagtail pattern you might want to be aware of – the use of an InlinePanel to insert any number of standard Django model fields – or combinations of fields, like this example with both an image and its alt text – without using a StreamField. You can [read more on InlinePanels in the docs](https://docs.wagtail.org/en/stable/topics/pages.html#inline-models).)
+We didn't include a template for this page, but you're welcome to try adding one. Here are a couple hints:
+
+1. Put it at `myblog/templates/blog/image_gallery_page.html`, which follows the conventional Wagtail template location pattern so you don't have to specify the template location in the model.
+2. We left off the decorative checkbox because images in a gallery context should always have alt text. Refer back to our original implementation of `image_block.html` to see how you could use a simple `if`/`else` statement to determine which alt text to output.
+
+(As a brief aside, the `ImageGalleryPage` model also showcases a common Wagtail pattern you might want to be aware of – the use of an `InlinePanel` to insert any number of standard Django model fields – or combinations of fields, like this example with both an image and its alt text – without using a StreamField. You can [read more on inline models in the docs](https://docs.wagtail.org/en/stable/topics/pages.html#inline-models).)
 
 
 ---

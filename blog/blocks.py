@@ -53,7 +53,13 @@ class ImageBlock(StructBlock):
     image = ImageChooserBlock()
     alt_text = CharBlock(
         required=False,
-        help_text="Use to override the image's default alt text.",
+        help_text=mark_safe(
+            "Enter a text alternative to be displayed if images fail to load, "
+            "or to be read by screen reader software. "
+            "(Overrides the image's default alt text.) "
+            '<a href="https://www.a11yproject.com/posts/alt-text/" '
+            'target="_blank">Learn more about writing good alt text</a>'
+        ),
     )
     decorative = BooleanBlock(
         required=False,
