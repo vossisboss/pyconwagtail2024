@@ -154,4 +154,4 @@ We didn't include a template for this page, but you're welcome to try adding one
 
 ---
 
-That's the end of our coding for this tutorial! Thanks for joining us :)
+That's the end of our coding for this tutorial! Thanks for joining us :) If you want to see what else you can do with your starter project, visit [Next Steps](https://github.com/vossisboss/pyconwagtail2024/tree/next-steps).
