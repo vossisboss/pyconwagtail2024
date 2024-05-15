@@ -27,3 +27,5 @@ Including all the tutorial steps in this README would make for one VERY long doc
 7. [Step Seven: Best Practices for Images and Alt Text](https://github.com/vossisboss/pyconwagtail2024/tree/step-7)
 
 8. [Step Eight: Helping Editors Help Themselves](https://github.com/vossisboss/pyconwagtail2024/tree/step-8)
+
+9.[Next Steps](https://github.com/vossisboss/pyconwagtail2024/tree/next-steps) 
